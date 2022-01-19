@@ -1,0 +1,3 @@
+gcloud functions deploy crawlerv2 --entry-point crawling --trigger-http --region asia-northeast1 --memory 128MB --runtime python39
+
+functions-framework --target=crawling
