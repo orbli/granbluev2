@@ -17,18 +17,18 @@ def get_crew(t):
         resj = json.loads(resp)
         for guild in resj["list"]:
             doc_crew = fs_configs.db.collection('crew').document(guild['id'])
-            batch.update(doc_crew, {
+            batch.set(doc_crew, {
                 "name": guild["name"],
                 "last_updated": t,
-            })
+            }, merge=True)
 
             doc_fight = doc_crew.collection('records').document(fs_configs.teamraid)
-            batch.update(doc_fight, {
+            batch.set(doc_fight, {
                 "records": firestore.ArrayUnion([{
-                    "ranking": guild["ranking"],
-                    "point": guild["point"],
+                    "ranking": int(guild["ranking"]),
+                    "point": int(guild["point"]),
                     "datetime": t,
                 }])
-            })
+            }, merge=True)
         batch.commit()
     print("end get_crew")
