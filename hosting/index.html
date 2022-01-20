@@ -13,17 +13,17 @@
   <script defer src="/__/firebase/init.js"></script>
 
   <!-- Font Awesome Icons -->
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css" crossorigin="anonymous">
   <!-- AdminLTE3 Theme style ref: https://adminlte.io/themes/v3/index3.html -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/3.0.5/css/adminlte.min.css" crossorigin="anonymous">
   <!-- Google Font: Source Sans Pro -->
   <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet" crossorigin="anonymous">
 
   <!-- Custom Page Styles -->
-	<style>
+    <style>
     /*Hide vue elements when not finished loading*/
-		[v-cloak] { display: none; }
-	</style>
+        [v-cloak] { display: none; }
+    </style>
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
@@ -39,11 +39,11 @@
         <a href="#" class="nav-link">gbf.orbb.li</a>
       </li>
     </ul>
-	<ul class="navbar-nav ml-auto">
-	  <li class="nav-item"> 
-	    <a class="nav-link" href="//github.com/carlchan1994"> Credit to: Carl Chan </a> 
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item"> 
+        <a class="nav-link" href="//github.com/carlchan1994"> Credit to: Carl Chan </a> 
       </li> 
-	</ul>
+    </ul>
   </nav>
   <!-- /.navbar -->
 
@@ -188,15 +188,15 @@
 
 <!-- Custom data processing functions -->
 <script id="ly-library">
-	function GetMonth(historyObject) {
-		d = new Date(historyObject.date[0].seconds*1000)
-		return (1900 + d.getYear()) + (""+(d.getMonth()+1)).padStart(2,'0')
-	}
-	function GetTitle(historyKey, historyObject) {
-		return historyKey.slice(-2) + historyObject.element
-	}
-	function GetIndex(historyObject) {
-		dStart = new Date(historyObject.date[0].seconds*1000)
+    function GetMonth(historyObject) {
+        d = new Date(historyObject.date[0].seconds*1000)
+        return (1900 + d.getYear()) + (""+(d.getMonth()+1)).padStart(2,'0')
+    }
+    function GetTitle(historyKey, historyObject) {
+        return historyKey.slice(-2) + historyObject.element
+    }
+    function GetIndex(historyObject) {
+        dStart = new Date(historyObject.date[0].seconds*1000)
         dEnd = new Date(historyObject.date[1].seconds*1000)
         if (historyObject.date[0].seconds*1000 == 1631113307000) {
             return rt = [
@@ -207,64 +207,64 @@
                 [4, "Day4"]
             ]
         }
-		rt = [
-			[-1, "Pre"],
-			[0, "Interval"],
-			[1, "Day1"],
-			[2, "Day2"],
-			[3, "Day3"],
-			[4, "Day4"]
-		]
-		if (dEnd - dStart == 604800000) rt.push([5, "Day5"])
-		return rt
-	}
-	function GetDate(historyObject, day) {
-		dStart = new Date(historyObject.date[0].seconds*1000)
-		if (day == -1)
-			return dStart.toLyDate()
-		else {
-			dStart.setDate(dStart.getDate() + 2 + day)
-			return dStart.toLyDate()
-		}
-	}
-	Date.prototype.addDays = function (days) {
-		return new Date(this.valueOf() + days * 86400e3);
-	}
-	Date.prototype.addHours = function (days) {
-		return new Date(this.valueOf() + days * 3600e3);
-	}
-	Date.prototype.addMinutes = function (days) {
-		return new Date(this.valueOf() + days * 60e3);
-	}
-	Date.prototype.toLyDate = function () {
-		return (""+this.getYear()).slice(-2) + (""+(this.getMonth()+1)).padStart(2,'0') + (""+(this.getDate()+1)).padStart(2,'0')
-	}
-	Date.prototype.toLyTime = function () {
-		return (""+this.getHours()).padStart(2,'0') + (""+this.getMinutes()).padStart(2,'0') + (""+this.getSeconds()).padStart(2,'0')
-	}
-	Date.prototype.toLyDatetime = function() {
-		return this.toLyDate() + this.toLyTime()
-	}
-	Date.prototype.between = function(startDate, endDate) {
-		return (startDate <= this) && (this <= endDate)
-	}
-	function GetDateTimeInRaid(raid, date){
-		key = raid
+        rt = [
+            [-1, "Pre"],
+            [0, "Interval"],
+            [1, "Day1"],
+            [2, "Day2"],
+            [3, "Day3"],
+            [4, "Day4"]
+        ]
+        if (dEnd - dStart == 604800000) rt.push([5, "Day5"])
+        return rt
+    }
+    function GetDate(historyObject, day) {
+        dStart = new Date(historyObject.date[0].seconds*1000)
+        if (day == -1)
+            return dStart.toLyDate()
+        else {
+            dStart.setDate(dStart.getDate() + 2 + day)
+            return dStart.toLyDate()
+        }
+    }
+    Date.prototype.addDays = function (days) {
+        return new Date(this.valueOf() + days * 86400e3);
+    }
+    Date.prototype.addHours = function (days) {
+        return new Date(this.valueOf() + days * 3600e3);
+    }
+    Date.prototype.addMinutes = function (days) {
+        return new Date(this.valueOf() + days * 60e3);
+    }
+    Date.prototype.toLyDate = function () {
+        return (""+this.getYear()).slice(-2) + (""+(this.getMonth()+1)).padStart(2,'0') + (""+(this.getDate()+1)).padStart(2,'0')
+    }
+    Date.prototype.toLyTime = function () {
+        return (""+this.getHours()).padStart(2,'0') + (""+this.getMinutes()).padStart(2,'0') + (""+this.getSeconds()).padStart(2,'0')
+    }
+    Date.prototype.toLyDatetime = function() {
+        return this.toLyDate() + this.toLyTime()
+    }
+    Date.prototype.between = function(startDate, endDate) {
+        return (startDate <= this) && (this <= endDate)
+    }
+    function GetDateTimeInRaid(raid, date){
+        key = raid
         raidStartDate = new Date(historicalData[key].date[0].seconds*1000)
-		switch(date){
-			case -1:
-				start = raidStartDate.addHours(18)
-				end = raidStartDate.addDays(1).addHours(23).addMinutes(59)
-				return [start, end]
-			case 0:
-				start = raidStartDate.addDays(2).addHours(7)
-				end = raidStartDate.addDays(3).addHours(6).addMinutes(59)
-				return [start, end]
-			case 1:
-			case 2:
-			case 3:
-			case 4:
-			case 5:
+        switch(date){
+            case -1:
+                start = raidStartDate.addHours(18)
+                end = raidStartDate.addDays(1).addHours(23).addMinutes(59)
+                return [start, end]
+            case 0:
+                start = raidStartDate.addDays(2).addHours(7)
+                end = raidStartDate.addDays(3).addHours(6).addMinutes(59)
+                return [start, end]
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
                 if (key == "teamraid058") {
                     start = raidStartDate.addDays(1 + date).addHours(7)
                     end = raidStartDate.addDays(1 + date).addHours(23).addMinutes(59)
@@ -272,33 +272,33 @@
                     start = raidStartDate.addDays(2 + date).addHours(7)
                     end = raidStartDate.addDays(2 + date).addHours(23).addMinutes(59)
                 }
-				return [start, end]
-			default:
-				return "bad"
-		}
-	}
-	function CreateTimeframe(raid, day){
-		startend = GetDateTimeInRaid(raid, day)
-		current = startend[0]
-		rt = []
-		for (current = startend[0]; current < startend[1]; current = current.addMinutes(20)) {
-			rt.push(current)
-		}
-		return rt
-	}
-	function transpose(a) {
-		var w = a.length || 0;
-		var h = a[0] instanceof Array ? a[0].length : 0;
-		if(h === 0 || w === 0) { return []; }
-		var i, j, t = [];
-		for(i=0; i<h; i++) {
-			t[i] = [];
-			for(j=0; j<w; j++) {
-				t[i][j] = a[j][i] == "" ? null : a[j][i];
-			}
-		}
-		return t;
-	}
+                return [start, end]
+            default:
+                return "bad"
+        }
+    }
+    function CreateTimeframe(raid, day){
+        startend = GetDateTimeInRaid(raid, day)
+        current = startend[0]
+        rt = []
+        for (current = startend[0]; current < startend[1]; current = current.addMinutes(20)) {
+            rt.push(current)
+        }
+        return rt
+    }
+    function transpose(a) {
+        var w = a.length || 0;
+        var h = a[0] instanceof Array ? a[0].length : 0;
+        if(h === 0 || w === 0) { return []; }
+        var i, j, t = [];
+        for(i=0; i<h; i++) {
+            t[i] = [];
+            for(j=0; j<w; j++) {
+                t[i][j] = a[j][i] == "" ? null : a[j][i];
+            }
+        }
+        return t;
+    }
 </script>
 
 <!-- Chart.js Settings -->
@@ -306,13 +306,13 @@
 var pborderdata, pborderdatadiff, crewdatadiff;
 var colors=['rgb(255,99,132)','rgb(255,159,64)','rgb(255,205,86)','rgb(75,192,192)','rgb(102,204,0)','rgb(127,0,255)'];
 function GraphConfig(title, datalabel, datasets){
-	return {
-		type: 'line',
-		data: {
-			labels: datalabel,
-			datasets: datasets
-		},
-		options: {
+    return {
+        type: 'line',
+        data: {
+            labels: datalabel,
+            datasets: datasets
+        },
+        options: {
             interaction: {
                 intersect: false,
                 mode: 'index',
@@ -323,134 +323,139 @@ function GraphConfig(title, datalabel, datasets){
                     text: title
                 },
             },
-		}
-	};
+        }
+    };
 }
 function LoadPersonalBorderGraph(raid, day) {
-		db.collection('personal_border').doc(raid).get().then((doc)=>{
-			data = doc.data()['records'].reduce((t,e)=>{
-				thisDateTime = new Date(e.datetime.seconds*1000)
-				return t.map((v)=>{
-					if (thisDateTime.between(v[0], v[0].addMinutes(20))) {
-						return [v[0]].concat(historicalData[raid].border.map((b)=>e[b]))
-					} else return v
-				})
-			},CreateTimeframe(raid,day).map((e)=>[e].concat(Array.from({length:4}))))
-			datat = transpose(data)
-			dataLabel = datat[0].map((e)=>e.toLyTime())
-			dataSet = []
-			dataSetDiff = []
-			for (i=0; i<historicalData[raid].border.length; i++) {
+        db.collection('personal_border').doc(raid).get().then((doc)=>{
+            dataset_amt = historicalData[raid].border.length;
+            data = doc.data()['records'].reduce((t,e)=>{
+                thisDateTime = new Date(e.datetime.seconds*1000)
+                return t.map((v)=>{
+                    if (thisDateTime.between(v[0], v[0].addMinutes(20))) {
+                        return [v[0]].concat(historicalData[raid].border.map((b)=>e[b]))
+                    } else return v
+                })
+            },CreateTimeframe(raid,day).map((e)=>[e].concat(Array.from({length:dataset_amt}))))
+            datat = transpose(data)
+            dataLabel = datat[0].map((e)=>e.toLyTime())
+            dataSet = []
+            dataSetDiff = []
+            for (i=0; i<dataset_amt; i++) {
+                if (datat[i+1] == null) {
+                    continue;
+                }
                 var display;
                 if (historicalData[raid].border[i] < 10000) {
                     display = false;
                 } else {
                     display = true;
                 }
-				dataSet.push({
-					label: historicalData[raid].border[i],
-					backgroundColor: colors[i],
-					borderColor: colors[i],
-					data: datat[i+1],
-					fill: false,
+                console.log(datat[i+1]);
+                dataSet.push({
+                    label: historicalData[raid].border[i],
+                    backgroundColor: colors[i],
+                    borderColor: colors[i],
+                    data: datat[i+1],
+                    fill: false,
                     hidden: !display
-				})
-				dataSetDiff.push({
-					label: historicalData[raid].border[i],
-					backgroundColor: colors[i],
-					borderColor: colors[i],
-					data: datat[i+1].map((v,j,a)=>{
-						if (a[j]==null||a[j-1]==null) return null
-						return a[j]-a[j-1]
-					}),
-					fill: false,
+                })
+                dataSetDiff.push({
+                    label: historicalData[raid].border[i],
+                    backgroundColor: colors[i],
+                    borderColor: colors[i],
+                    data: datat[i+1].map((v,j,a)=>{
+                        if (a[j]==null||a[j-1]==null) return null
+                        return a[j]-a[j-1]
+                    }),
+                    fill: false,
                     hidden: !display
-				})
-			}
-			$('.pborder').show();
-			$('.crewsearch').hide();
-			if (pborderdata != null) pborderdata.destroy();
-			if (pborderdatadiff != null) pborderdatadiff.destroy();
-			pborderdata = new Chart(
-				$('#pborderdata')[0].getContext('2d'),
-				GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
-			);
-			pborderdatadiff = new Chart(
-				$('#pborderdatadiff')[0].getContext('2d'),
-				GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
-			);
-		})
+                })
+            }
+            $('.pborder').show();
+            $('.crewsearch').hide();
+            if (pborderdata != null) pborderdata.destroy();
+            if (pborderdatadiff != null) pborderdatadiff.destroy();
+            pborderdata = new Chart(
+                $('#pborderdata')[0].getContext('2d'),
+                GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
+            );
+            pborderdatadiff = new Chart(
+                $('#pborderdatadiff')[0].getContext('2d'),
+                GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
+            );
+        })
 }
 function LoadCrewSearchGraph(raid) {
-	$('#bookmaker').hide();
-	$('.pborder').hide();
-	$('.crewsearch').show();
-	$('form input[name=raid]')[0].value = raid;
+    $('#bookmaker').hide();
+    $('.pborder').hide();
+    $('.crewsearch').show();
+    $('form input[name=raid]')[0].value = raid;
 }
 function GetCrewData() {
-	raid = $('form input[name=raid]')[0].value
-	crew_id = $('form input[name=crew_id]')[0].value
-	db.collection('crew').doc(crew_id).collection('records').doc(raid).get().then((doc)=>{
-		data = doc.data()['records'].reduce((t,e)=>{
-			thisDateTime = new Date(e.datetime.seconds*1000)
-			return t.map((day)=>{
-				return day.map((row)=>{
-					if (thisDateTime.between(row[0], row[0].addMinutes(20))) {
-						return [row[0], e.point]
-					} else {
-						return row
-					}
-				})
-			})
-		},Array.from({length:4},(x,i)=>i+1).map((e)=>CreateTimeframe(raid,e).map((x)=>[x,null])))
-		dataSetDiff = []
-		header = transpose(data[0])[0].map((e)=>e.toLyTime())
-		for (i=0; i<4; i++) {
-			datat = transpose(data[i])
-			dataSetDiff.push({
-				label: "Day" + (i+1),
-				backgroundColor: colors[i],
-				borderColor: colors[i],
-				data: datat[1].map((v,j,a)=>{
-					if (a[j]==null||a[j-1]==null) return null
-					return a[j]-a[j-1]
-				}),
-				fill: false
-			})
-		}
-		if (crewdatadiff != null) crewdatadiff.destroy();
-		crewdatadiff = new Chart(
-			$('#crew')[0].getContext('2d'),
-			GraphConfig('Day1 - Day4 speed', header, dataSetDiff)
-		);
-	})
+    raid = $('form input[name=raid]')[0].value
+    crew_id = $('form input[name=crew_id]')[0].value
+    db.collection('crew').doc(crew_id).collection('records').doc(raid).get().then((doc)=>{
+        data = doc.data()['records'].reduce((t,e)=>{
+            thisDateTime = new Date(e.datetime.seconds*1000)
+            return t.map((day)=>{
+                return day.map((row)=>{
+                    if (thisDateTime.between(row[0], row[0].addMinutes(20))) {
+                        return [row[0], e.point]
+                    } else {
+                        return row
+                    }
+                })
+            })
+        },Array.from({length:4},(x,i)=>i+1).map((e)=>CreateTimeframe(raid,e).map((x)=>[x,null])))
+        dataSetDiff = []
+        header = transpose(data[0])[0].map((e)=>e.toLyTime())
+        for (i=0; i<4; i++) {
+            datat = transpose(data[i])
+            dataSetDiff.push({
+                label: "Day" + (i+1),
+                backgroundColor: colors[i],
+                borderColor: colors[i],
+                data: datat[1].map((v,j,a)=>{
+                    if (a[j]==null||a[j-1]==null) return null
+                    return a[j]-a[j-1]
+                }),
+                fill: false
+            })
+        }
+        if (crewdatadiff != null) crewdatadiff.destroy();
+        crewdatadiff = new Chart(
+            $('#crew')[0].getContext('2d'),
+            GraphConfig('Day1 - Day4 speed', header, dataSetDiff)
+        );
+    })
 }
 </script>
 
 <!-- Page init functions & event listerners -->
 <script id="init-page">
-	$('form').submit((e)=>e.preventDefault())
-	var historicalData, db;
-	$('.pborder').hide();
-	$('.crewsearch').hide();
-	document.addEventListener('DOMContentLoaded', function() {
-		try {
-			let app = firebase.app();
-		} catch (e) {
-			console.error(e);
-		}
-		db = firebase.firestore();
-		//Generate Nav Bar Items from firebase data
-		db.collection('configs').doc('history').get().then((doc) => {
-			historicalData = Object.entries(doc.data()).reverse().reduce((a,c)=>{a[c[0]]=c[1]; return a}, {});
-			app = new Vue({el: '#navbar', data: {history: historicalData}})
-			db.collection('configs').doc('config').get().then((cfg) => {
-				newestRaid = cfg.data()['teamraid']
-				today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<new Date()))
-				LoadPersonalBorderGraph(newestRaid, today[0])
-			})
-		});
-	});
+    $('form').submit((e)=>e.preventDefault())
+    var historicalData, db;
+    $('.pborder').hide();
+    $('.crewsearch').hide();
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            let app = firebase.app();
+        } catch (e) {
+            console.error(e);
+        }
+        db = firebase.firestore();
+        //Generate Nav Bar Items from firebase data
+        db.collection('configs').doc('history').get().then((doc) => {
+            historicalData = Object.entries(doc.data()).reverse().reduce((a,c)=>{a[c[0]]=c[1]; return a}, {});
+            app = new Vue({el: '#navbar', data: {history: historicalData}})
+            db.collection('configs').doc('config').get().then((cfg) => {
+                newestRaid = cfg.data()['teamraid']
+                today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<new Date()))
+                LoadPersonalBorderGraph(newestRaid, today[0])
+            })
+        });
+    });
 </script>
 
 <!-- /.==== CUSTOM JAVASCRIPT FUNCTIONS ==== -->
