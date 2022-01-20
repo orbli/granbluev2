@@ -304,7 +304,7 @@
 <!-- Chart.js Settings -->
 <script id="graph-render">
 var pborderdata, pborderdatadiff, crewdatadiff;
-var colors=['rgb(255,99,132)','rgb(255,159,64)','rgb(255,205,86)','rgb(75,192,192)'];
+var colors=['rgb(255,99,132)','rgb(255,159,64)','rgb(255,205,86)','rgb(75,192,192)','rgb(102,204,0)','rgb(127,0,255)'];
 function GraphConfig(title, xlabel, ylabel, datalabel, datasets){
 	return {
 		type: 'line',
@@ -360,7 +360,7 @@ function LoadPersonalBorderGraph(raid, day) {
 			dataLabel = datat[0].map((e)=>e.toLyTime())
 			dataSet = []
 			dataSetDiff = []
-			for (i=0; i<4; i++) {
+			for (i=0; i<historicalData[raidString].border.length; i++) {
 				dataSet.push({
 					label: historicalData[raidString].border[i],
 					backgroundColor: colors[i],

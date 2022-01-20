@@ -13,15 +13,18 @@ def get_personal_border(t):
     for v in ranks:
         pageno = v / 10
         url = "/rest_ranking_user/detail/%d/0" % pageno
-        resp = gbf_request.get(url)
-        resj = json.loads(resp)
-        for player in resj["list"]:
-            if player["rank"] == str(v):
-                rt[player["rank"]] = int(player["point"])
-                break
-        rt["datetime"] = t
+        try:
+            resp = gbf_request.get(url)
+            resj = json.loads(resp)
+            for player in resj["list"]:
+                if player["rank"] == str(v):
+                    rt[player["rank"]] = int(player["point"])
+                    break
+            rt["datetime"] = t
+        except Exception as e:
+            print(json.dump({"error":str(e),"resp":resp}))
+            raise e
 
-    print(json.dumps(rt))
     doc = fs_configs.db.collection('personal_border').document(fs_configs.teamraid)
     doc.update({'records': firestore.ArrayUnion([rt])})
 
