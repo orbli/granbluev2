@@ -4,7 +4,7 @@ import fs_configs
 from google.cloud import firestore
 
 ranks = [2000]
-ranks.extend(range(5000, 300000, 5000))
+ranks.extend(range(5000, 370001, 5000))
 
 def get_personal_border(t):
     print("start get_personal_border")
@@ -21,7 +21,7 @@ def get_personal_border(t):
                 break
         rt["datetime"] = t
 
-    print("personal_border entry:", rt)
+    print(json.dumps(rt))
     doc = fs_configs.db.collection('personal_border').document(fs_configs.teamraid)
     doc.update({'records': firestore.ArrayUnion([rt])})
 
