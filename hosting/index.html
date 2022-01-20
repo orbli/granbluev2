@@ -150,7 +150,7 @@
               <form onsubmit="GetCrewData()">
                 <div class="form-group">
                   <input type="hidden" name="raid" value="46">
-                  <label for="crew_id">Crew id:</label>
+                  <label for="crew_id">Crew id / name:</label>
                   <input type="text" class="form-control" name="crew_id" placeholder="Enter crew id">
                 </div>
                 <button type="submit" class="btn btn-default">Submit</button>
@@ -351,7 +351,6 @@ function LoadPersonalBorderGraph(raid, day) {
                 } else {
                     display = true;
                 }
-                console.log(datat[i+1]);
                 dataSet.push({
                     label: historicalData[raid].border[i],
                     backgroundColor: colors[i],
@@ -394,8 +393,19 @@ function LoadCrewSearchGraph(raid) {
 }
 function GetCrewData() {
     raid = $('form input[name=raid]')[0].value
-    crew_id = $('form input[name=crew_id]')[0].value
-    db.collection('crew').doc(crew_id).collection('records').doc(raid).get().then((doc)=>{
+    input = $('form input[name=crew_id]')[0].value
+    if (isNaN(input)) {
+        db.collection('crew').where('name','==',input).limit(1).get().then(
+            s=>s.forEach(d=>{
+                console.log("searched", input, "has id", d.id);
+                draw_graph(d.id);
+            })
+        )
+    } else {
+        draw_graph(input)
+    }
+    function draw_graph(crew_id) {
+        db.collection('crew').doc(crew_id).collection('records').doc(raid).get().then((doc)=>{
         data = doc.data()['records'].reduce((t,e)=>{
             thisDateTime = new Date(e.datetime.seconds*1000)
             return t.map((day)=>{
@@ -429,6 +439,7 @@ function GetCrewData() {
             GraphConfig('Day1 - Day4 speed', header, dataSetDiff)
         );
     })
+    }
 }
 </script>
 
@@ -449,7 +460,7 @@ function GetCrewData() {
         db.collection('configs').doc('history').get().then((doc) => {
             historicalData = Object.entries(doc.data()).reverse().reduce((a,c)=>{a[c[0]]=c[1]; return a}, {});
             app = new Vue({el: '#navbar', data: {history: historicalData}})
-            db.collection('configs').doc('config').get().then((cfg) => {
+            db.collection('configs').doc('public_config').get().then((cfg) => {
                 newestRaid = cfg.data()['teamraid']
                 today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<new Date()))
                 LoadPersonalBorderGraph(newestRaid, today[0])

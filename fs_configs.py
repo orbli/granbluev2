@@ -6,20 +6,21 @@ teamraid = ''
 useragent = ''
 
 def get_configs():
-    doc = db.collection('configs').document('config').get().to_dict()
-    global cookie
+    doc = db.collection('configs').document('public_config').get().to_dict()
     global teamraid
+    teamraid = doc["teamraid"]
+    print("init teamraid: %s" % teamraid)
+    doc = db.collection('configs').document('private_config').get().to_dict()
+    global cookie
     global useragent
     cookie = doc["cookie"]
-    teamraid = doc["teamraid"]
     useragent = doc["useragent"]
     print("init cookie: %s" % cookie)
-    print("init teamraid: %s" % teamraid)
     print("init useragent: %s" % useragent)
 
 
 def set_cookie():
-    db.collection('configs').document('config').update({
+    db.collection('configs').document('private_config').update({
         "cookie": cookie
     })
     print("store cookie: %s" % cookie)
