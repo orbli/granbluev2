@@ -66,10 +66,10 @@
           <!-- use vue to dynamically generate items by "v-for" loop-->
           <li class="nav-header">Charts</li>
           <li class="nav-item has-treeview" v-for='(value, key) in history'>
-            <a href="#" class="nav-link" :title="GetMonth(value)">
+            <a href="#" class="nav-link" :title="helpers.GetMonth(value)">
               <i class="nav-icon fas fa-chart-bar"></i>
               <p>
-                {{GetTitle(key, value)}}
+                {{helpers.GetTitle(key, value)}}
                 <i class="right fas fa-angle-left"></i>
               </p>
             </a>
@@ -77,17 +77,17 @@
             <ul class="nav nav-treeview">
               <!-- CrewSearch button -->
               <li class="nav-item">
-                <a href="#" class="nav-link" v-on:click="LoadCrewSearchGraph(key)">
+                <a href="#" class="nav-link" v-on:click="helpers.LoadCrewSearchGraph(key)">
                   <i class="fas fa-search nav-icon"></i>
                   <p>CrewSearch</p>
                 </a>
               </li>
               <li class="nav-header pt-2">Personal Borders:</li>
               <!-- use vue to dynamically generate sub-items by "v-for" loop -->
-              <li class="nav-item" v-for='i in GetIndex(value)'>
-                <a href="#" class="nav-link" @click="LoadPersonalBorderGraph(key,i[0])">
+              <li class="nav-item" v-for='i in helpers.GetIndex(value)'>
+                <a href="#" class="nav-link" @click="helpers.LoadPersonalBorderGraph(key,i[0])">
                   <i class="nav-icon far fa-circle"></i>
-                  <p>{{GetDate(value,i[0])}} {{i[1]}}</p>
+                  <p>{{helpers.GetDate(value,i[0])}} {{i[1]}}</p>
                 </a>
               </li>
             </ul>
@@ -178,7 +178,7 @@
 <!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js" integrity="sha512-TW5s0IT/IppJtu76UbysrBH9Hy/5X41OTAbQuffZFU6lQ1rdcLHzpU5BzVvr/YFykoiMYZVWlr/PX1mDcfM9Qg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <!-- Vue -->
-<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
 <!-- moment.js for time convertion -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
 <!-- /.==== Javascript Libraries ==== -->
@@ -188,44 +188,112 @@
 
 <!-- Custom data processing functions -->
 <script id="ly-library">
-    function GetMonth(historyObject) {
-        d = new Date(historyObject.date[0].seconds*1000)
-        return (1900 + d.getYear()) + (""+(d.getMonth()+1)).padStart(2,'0')
-    }
-    function GetTitle(historyKey, historyObject) {
-        return historyKey.slice(-2) + historyObject.element
-    }
-    function GetIndex(historyObject) {
-        dStart = new Date(historyObject.date[0].seconds*1000)
-        dEnd = new Date(historyObject.date[1].seconds*1000)
-        if (historyObject.date[0].seconds*1000 == 1631113307000) {
-            return rt = [
+    helpers = {
+        GetMonth: (historyObject) => {
+            d = new Date(historyObject.date[0].seconds*1000)
+            return (1900 + d.getYear()) + (""+(d.getMonth()+1)).padStart(2,'0')
+        },
+        GetTitle: (historyKey, historyObject) => {
+            return historyKey.slice(-2) + historyObject.element
+        },
+        GetIndex: (historyObject) => {
+            dStart = new Date(historyObject.date[0].seconds*1000)
+            dEnd = new Date(historyObject.date[1].seconds*1000)
+            if (historyObject.date[0].seconds*1000 == 1631113307000) {
+                return rt = [
+                    [-1, "Pre"],
+                    [1, "Day1"],
+                    [2, "Day2"],
+                    [3, "Day3"],
+                    [4, "Day4"]
+                ]
+            }
+            rt = [
                 [-1, "Pre"],
+                [0, "Interval"],
                 [1, "Day1"],
                 [2, "Day2"],
                 [3, "Day3"],
                 [4, "Day4"]
             ]
-        }
-        rt = [
-            [-1, "Pre"],
-            [0, "Interval"],
-            [1, "Day1"],
-            [2, "Day2"],
-            [3, "Day3"],
-            [4, "Day4"]
-        ]
-        if (dEnd - dStart == 604800000) rt.push([5, "Day5"])
-        return rt
-    }
-    function GetDate(historyObject, day) {
-        dStart = new Date(historyObject.date[0].seconds*1000)
-        if (day == -1)
-            return dStart.toLyDate()
-        else {
-            dStart.setDate(dStart.getDate() + 2 + day)
-            return dStart.toLyDate()
-        }
+            if (dEnd - dStart == 604800000) rt.push([5, "Day5"])
+            return rt
+        },
+        GetDate: (historyObject, day) => {
+            dStart = new Date(historyObject.date[0].seconds*1000)
+            if (day == -1)
+                return dStart.toLyDate()
+            else {
+                dStart.setDate(dStart.getDate() + 2 + day)
+                return dStart.toLyDate()
+            }
+        },
+        LoadCrewSearchGraph: (raid) => {
+            $('#bookmaker').hide();
+            $('.pborder').hide();
+            $('.crewsearch').show();
+            $('form input[name=raid]')[0].value = raid;
+        },
+        LoadPersonalBorderGraph: (raid, day) => {
+            db.collection('personal_border').doc(raid).get().then((doc)=>{
+                dataset_amt = historicalData[raid].border.length;
+                data = doc.data()['records'].reduce((t,e)=>{
+                    thisDateTime = new Date(e.datetime.seconds*1000)
+                    return t.map((v)=>{
+                        if (thisDateTime.between(v[0], v[0].addMinutes(20))) {
+                            return [v[0]].concat(historicalData[raid].border.map((b)=>e[b]))
+                        } else return v
+                    })
+                },CreateTimeframe(raid,day).map((e)=>[e].concat(Array.from({length:dataset_amt}))))
+                datat = transpose(data)
+                dataLabel = datat[0].map((e)=>e.toLyTime())
+                dataSet = []
+                dataSetDiff = []
+                for (i=0; i<dataset_amt; i++) {
+                    if (datat[i+1] == null) {
+                        continue;
+                    }
+                    var display;
+                    if (historicalData[raid].border[i] < 10000) {
+                        display = false;
+                    } else {
+                        display = true;
+                    }
+                    dataSet.push({
+                        label: historicalData[raid].border[i],
+                        backgroundColor: colors[i],
+                        borderColor: colors[i],
+                        data: datat[i+1],
+                        fill: false,
+                        hidden: !display
+                    })
+                    dataSetDiff.push({
+                        label: historicalData[raid].border[i],
+                        backgroundColor: colors[i],
+                        borderColor: colors[i],
+                        data: datat[i+1].map((v,j,a)=>{
+                            if (a[j]==null||a[j-1]==null) return null
+                            return a[j]-a[j-1]
+                        }),
+                        fill: false,
+                        hidden: !display
+                    })
+                }
+                $('.pborder').show();
+                $('.crewsearch').hide();
+                if (pborderdata != null) pborderdata.destroy();
+                if (pborderdatadiff != null) pborderdatadiff.destroy();
+                pborderdata = new Chart(
+                    $('#pborderdata')[0].getContext('2d'),
+                    GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
+                );
+                pborderdatadiff = new Chart(
+                    $('#pborderdatadiff')[0].getContext('2d'),
+                    GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
+                );
+            })
+        },
+        
     }
     Date.prototype.addDays = function (days) {
         return new Date(this.valueOf() + days * 86400e3);
@@ -326,71 +394,7 @@ function GraphConfig(title, datalabel, datasets){
         }
     };
 }
-function LoadPersonalBorderGraph(raid, day) {
-        db.collection('personal_border').doc(raid).get().then((doc)=>{
-            dataset_amt = historicalData[raid].border.length;
-            data = doc.data()['records'].reduce((t,e)=>{
-                thisDateTime = new Date(e.datetime.seconds*1000)
-                return t.map((v)=>{
-                    if (thisDateTime.between(v[0], v[0].addMinutes(20))) {
-                        return [v[0]].concat(historicalData[raid].border.map((b)=>e[b]))
-                    } else return v
-                })
-            },CreateTimeframe(raid,day).map((e)=>[e].concat(Array.from({length:dataset_amt}))))
-            datat = transpose(data)
-            dataLabel = datat[0].map((e)=>e.toLyTime())
-            dataSet = []
-            dataSetDiff = []
-            for (i=0; i<dataset_amt; i++) {
-                if (datat[i+1] == null) {
-                    continue;
-                }
-                var display;
-                if (historicalData[raid].border[i] < 10000) {
-                    display = false;
-                } else {
-                    display = true;
-                }
-                dataSet.push({
-                    label: historicalData[raid].border[i],
-                    backgroundColor: colors[i],
-                    borderColor: colors[i],
-                    data: datat[i+1],
-                    fill: false,
-                    hidden: !display
-                })
-                dataSetDiff.push({
-                    label: historicalData[raid].border[i],
-                    backgroundColor: colors[i],
-                    borderColor: colors[i],
-                    data: datat[i+1].map((v,j,a)=>{
-                        if (a[j]==null||a[j-1]==null) return null
-                        return a[j]-a[j-1]
-                    }),
-                    fill: false,
-                    hidden: !display
-                })
-            }
-            $('.pborder').show();
-            $('.crewsearch').hide();
-            if (pborderdata != null) pborderdata.destroy();
-            if (pborderdatadiff != null) pborderdatadiff.destroy();
-            pborderdata = new Chart(
-                $('#pborderdata')[0].getContext('2d'),
-                GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
-            );
-            pborderdatadiff = new Chart(
-                $('#pborderdatadiff')[0].getContext('2d'),
-                GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
-            );
-        })
-}
-function LoadCrewSearchGraph(raid) {
-    $('#bookmaker').hide();
-    $('.pborder').hide();
-    $('.crewsearch').show();
-    $('form input[name=raid]')[0].value = raid;
-}
+
 function GetCrewData() {
     raid = $('form input[name=raid]')[0].value
     input = $('form input[name=crew_id]')[0].value
@@ -459,11 +463,14 @@ function GetCrewData() {
         //Generate Nav Bar Items from firebase data
         db.collection('configs').doc('history').get().then((doc) => {
             historicalData = Object.entries(doc.data()).reverse().reduce((a,c)=>{a[c[0]]=c[1]; return a}, {});
-            app = new Vue({el: '#navbar', data: {history: historicalData}})
+            app = new Vue({el: '#navbar', data: {
+                history: historicalData,
+                helpers: helpers,
+            }})
             db.collection('configs').doc('public_config').get().then((cfg) => {
                 newestRaid = cfg.data()['teamraid']
                 today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<new Date()))
-                LoadPersonalBorderGraph(newestRaid, today[0])
+                helpers.LoadPersonalBorderGraph(newestRaid, today[0])
             })
         });
     });
