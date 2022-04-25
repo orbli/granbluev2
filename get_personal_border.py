@@ -26,6 +26,6 @@ def get_personal_border(t):
             raise e
 
     doc = fs_configs.db.collection('personal_border').document(fs_configs.teamraid)
-    doc.update({'records': firestore.ArrayUnion([rt])})
+    doc.set({'records': firestore.ArrayUnion([rt])}, merge=True)
 
     print("end get_personal_border")
