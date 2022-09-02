@@ -3,6 +3,17 @@ import get_personal_border
 import get_crew
 # from google.cloud import firestore
 import datetime
+# import googlecloudprofiler
+
+# try:
+#     googlecloudprofiler.start(
+#         service='crawler-profiler',
+#         service_version='1.0.1',
+#         verbose=3,
+#         project_id='granblue-247222',
+#     )
+# except (ValueError, NotImplementedError) as exc:
+#     print(exc)  # Handle errors here
 
 def crawling(request):
     ts = datetime.datetime.now()
