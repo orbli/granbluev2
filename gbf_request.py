@@ -2,11 +2,14 @@ import requests
 import fs_configs
 from http.cookies import SimpleCookie
 from requests.cookies import *
+from lxml import etree
+import json
 
-t = requests.get("http://game.granbluefantasy.jp").text
-p = t.find("Game.version")
-xversion = t[p+16:p+26]
-print("X-VERSION: %s" % xversion)
+t = requests.get("https://game.granbluefantasy.jp")
+tree = etree.HTML(t.text)
+txt = tree.xpath('/html/head/script[@id="server-props"]')[0].text
+j = json.loads(txt)
+print("X-VERSION: %s" % j['version'])
 
 def get(url):
     scookie = SimpleCookie()
@@ -18,14 +21,14 @@ def get(url):
     cookies = cookiejar_from_dict(cookiesdict)
 
     resp = requests.get(
-        "http://game.granbluefantasy.jp/%s%s" % (fs_configs.teamraid, url),
+        "https://game.granbluefantasy.jp/%s%s" % (fs_configs.teamraid, url),
         headers={
             "X-VERSION": xversion,
             "Accept-Encoding": "gzip, deflate",
             "Accept-Language": "en-GB,en;q=0.9,en-US;q=0.8,zh-TW;q=0.7,zh;q=0.6,zh-CN;q=0.5,ja;q=0.4",
             "User-Agent": fs_configs.useragent,
             "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Referer": "http://game.granbluefantasy.jp/",
+            "Referer": "https://game.granbluefantasy.jp/",
             "X-Requested-With": "XMLHttpRequest",
             "Connection": "keep-alive",
         },
