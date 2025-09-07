@@ -4,6 +4,8 @@ from http.cookies import SimpleCookie
 from requests.cookies import *
 from lxml import etree
 import json
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 t = requests.get("https://game.granbluefantasy.jp")
 tree = etree.HTML(t.text)
@@ -21,7 +23,19 @@ def get(url):
 
     cookies = cookiejar_from_dict(cookiesdict)
 
-    resp = requests.get(
+    # --- Retry Logic ---
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=frozenset(['GET', 'POST'])
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('https://', adapter)
+    # --- End Retry Logic ---
+
+    resp = session.get(
         "https://game.granbluefantasy.jp/%s%s" % (fs_configs.teamraid, url),
         headers={
             "X-VERSION": xversion,

@@ -1,3 +1,27 @@
-gcloud functions deploy crawlerv2 --entry-point crawling --trigger-http --region asia-northeast1 --memory 128MB --runtime python39
+## How to run the function locally in Cloud Shell
 
-functions-framework --target=crawling
+# 1. Navigate to the function's directory
+cd ~/granbluev2
+
+# 2. Install dependencies
+pip install -r requirements.txt --user
+
+# 3. Run the functions framework
+# This will start a local server running your function
+python3 -m functions_framework --source main.py --target crawling
+
+
+## How to deploy the function
+
+# Note: Ensure you are in the granbluev2 directory before running this command.
+
+# Deploys the function to Google Cloud as a Gen2 function with a 10-minute timeout.
+gcloud functions deploy crawling \
+  --gen2 \
+  --runtime python312 \
+  --trigger-http \
+  --entry-point crawling \
+  --source . \
+  --region asia-northeast1 \
+  --project granblue-247222 \
+  --timeout=600
