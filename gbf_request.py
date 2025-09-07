@@ -9,7 +9,8 @@ t = requests.get("https://game.granbluefantasy.jp")
 tree = etree.HTML(t.text)
 txt = tree.xpath('/html/head/script[@id="server-props"]')[0].text
 j = json.loads(txt)
-print("X-VERSION: %s" % j['version'])
+xversion = j['version']
+print("X-VERSION: %s" % xversion)
 
 def get(url):
     scookie = SimpleCookie()
@@ -43,4 +44,12 @@ def get(url):
     rt_cookie_txt = '; '.join("%s=%s" % (k, v) for k, v in rt_cookie.items())
 
     fs_configs.cookie = rt_cookie_txt
+
+    try:
+        data = json.loads(resp.text)
+        if data.get('auth_status') == 'require_auth':
+            raise ValueError('Authentication required: %s' % resp.text)
+    except json.JSONDecodeError:
+        pass
+
     return resp.text
