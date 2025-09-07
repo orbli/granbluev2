@@ -1,2 +1,4 @@
 /__pycache__
 /.firebase
+.gemini/
+gha-creds-*.json
