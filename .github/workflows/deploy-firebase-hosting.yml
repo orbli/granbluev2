@@ -38,7 +38,7 @@ jobs:
       id: create_key
       run: |
         gcloud iam service-accounts keys create key.json --iam-account=${{ env.CI_SERVICE_ACCOUNT }}
-        echo "key_id=$(gcloud iam service-accounts keys list --iam-account=${{ env.CI_SERVICE_ACCOUNT }} --filter=\"keyType=USER_MANAGED\" --format='value(name)' --limit=1)" >> $GITHUB_OUTPUT
+        echo "key_id=$(jq -r .private_key_id key.json)" >> $GITHUB_OUTPUT
         echo "key_json=$(cat key.json)" >> $GITHUB_OUTPUT
 
     - name: Deploy to Firebase Hosting
