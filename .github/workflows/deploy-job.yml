@@ -32,7 +32,7 @@ jobs:
 
     - name: Build and Push Image
       run: |-
-        gcloud builds submit --pack image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }} --project=${{ env.PROJECT_ID }} cloud-run_helloworld --no-source
+        gcloud builds submit --pack image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }} --project=${{ env.PROJECT_ID }} cloud-run_helloworld
 
     - name: Deploy Job
       run: |-
