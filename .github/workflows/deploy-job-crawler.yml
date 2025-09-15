@@ -54,6 +54,7 @@ jobs:
             --service-account "$SERVICE_ACCOUNT" \
             --project "$PROJECT_ID" \
             --max-retries=0 \
+            --tasks=2 \
             --parallelism=1
         else
           echo "Job $JOB_NAME does not exist. Creating..."
@@ -63,5 +64,6 @@ jobs:
             --service-account "$SERVICE_ACCOUNT" \
             --project "$PROJECT_ID" \
             --max-retries=0 \
+            --tasks=2 \
             --parallelism=1
         fi
