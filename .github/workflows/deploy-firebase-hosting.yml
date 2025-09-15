@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'firebase-hosting/**'
+      - '.github/workflows/deploy-firebase-hosting.yml'
 
 env:
   PROJECT_ID: granblue-247222
