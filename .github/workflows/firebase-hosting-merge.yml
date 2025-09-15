@@ -17,3 +17,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GRANBLUE_247222 }}
           channelId: live
           projectId: granblue-247222
+          entryPoint: ./firebase-hosting
