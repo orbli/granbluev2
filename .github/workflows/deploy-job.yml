@@ -36,7 +36,7 @@ jobs:
 
     - name: Deploy Job
       run: |-
-        gcloud run jobs replace ${{ env.IMAGE_NAME }} \
+        gcloud run jobs update ${{ env.IMAGE_NAME }} \
           --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }} \
           --region ${{ env.REGION }} \
           --service-account ${{ env.SERVICE_ACCOUNT }} \
