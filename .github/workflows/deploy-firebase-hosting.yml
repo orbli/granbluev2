@@ -8,6 +8,10 @@ on:
       - 'firebase-hosting/**'
       - '.github/workflows/deploy-firebase-hosting.yml'
 
+# This workflow requires the service account to have the following roles:
+# - Service Account Key Admin (roles/iam.serviceAccountKeyAdmin)
+# - Firebase Hosting Admin (roles/firebasehosting.admin)
+
 env:
   PROJECT_ID: granblue-247222
   CI_SERVICE_ACCOUNT: github-deployer@granblue-247222.iam.gserviceaccount.com
@@ -35,7 +39,7 @@ jobs:
       run: |
         gcloud iam service-accounts keys create key.json --iam-account=${{ env.CI_SERVICE_ACCOUNT }}
         echo "key_id=$(gcloud iam service-accounts keys list --iam-account=${{ env.CI_SERVICE_ACCOUNT }} --filter=\"keyType=USER_MANAGED\" --format='value(name)' --limit=1)" >> $GITHUB_OUTPUT
-        echo "key_json=$(cat key.json | tr -d '\n' | tr -d '\r')" >> $GITHUB_OUTPUT
+        echo "key_json=$(cat key.json)" >> $GITHUB_OUTPUT
 
     - name: Deploy to Firebase Hosting
       uses: FirebaseExtended/action-hosting-deploy@v0
@@ -50,4 +54,5 @@ jobs:
       if: always()
       run: |
         gcloud iam service-accounts keys delete ${{ steps.create_key.outputs.key_id }} --iam-account=${{ env.CI_SERVICE_ACCOUNT }} -q
+
 
