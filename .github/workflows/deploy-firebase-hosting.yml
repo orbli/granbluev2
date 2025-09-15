@@ -34,14 +34,20 @@ jobs:
       id: create_key
       run: |
         gcloud iam service-accounts keys create key.json --iam-account=${{ env.CI_SERVICE_ACCOUNT }}
-        echo "::set-output name=key::$(cat key.json)"
+        echo "key_id=$(gcloud iam service-accounts keys list --iam-account=${{ env.CI_SERVICE_ACCOUNT }} --filter=\"keyType=USER_MANAGED\" --format='value(name)' --limit=1)" >> $GITHUB_OUTPUT
+        echo "key_json=$(cat key.json | tr -d '\n' | tr -d '\r')" >> $GITHUB_OUTPUT
 
     - name: Deploy to Firebase Hosting
       uses: FirebaseExtended/action-hosting-deploy@v0
       with:
         repoToken: '${{ secrets.GITHUB_TOKEN }}'
-        firebaseServiceAccount: '${{ steps.create_key.outputs.key }}'
+        firebaseServiceAccount: '${{ steps.create_key.outputs.key_json }}'
         channelId: live
         projectId: ${{ env.PROJECT_ID }}
         entryPoint: ./firebase-hosting
+
+    - name: Revoke service account key
+      if: always()
+      run: |
+        gcloud iam service-accounts keys delete ${{ steps.create_key.outputs.key_id }} --iam-account=${{ env.CI_SERVICE_ACCOUNT }} -q
 
