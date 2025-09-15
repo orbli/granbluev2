@@ -1,4 +1,0 @@
-# Python 3.12
-google-cloud-firestore==2.21.0
-lxml==6.0.1
-functions-framework==3.9.2
