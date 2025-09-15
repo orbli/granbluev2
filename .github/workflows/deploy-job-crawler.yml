@@ -1,0 +1,67 @@
+name: Deploy Cloud Run Crawler Job
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: granblue-247222
+  REGION: asia-northeast1
+  CI_SERVICE_ACCOUNT: github-deployer@granblue-247222.iam.gserviceaccount.com
+  JOB_SERVICE_ACCOUNT: crawling-service-account@granblue-247222.iam.gserviceaccount.com
+  IMAGE_NAME: cloud-run-crawler
+  REPO_NAME: my-docker-repo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Google Auth
+      id: auth
+      uses: 'google-github-actions/auth@v1'
+      with:
+        workload_identity_provider: 'projects/964139672422/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        service_account: '${{ env.CI_SERVICE_ACCOUNT }}'
+
+    - name: Build and Push Image
+      run: |-
+        gcloud builds submit --pack image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }} --project=${{ env.PROJECT_ID }} cloud-run_crawler
+
+    - name: Deploy Job
+      run: |
+        #!/bin/bash
+        set -e
+
+        JOB_NAME="${{ env.IMAGE_NAME }}"
+        REGION="${{ env.REGION }}"
+        PROJECT_ID="${{ env.PROJECT_ID }}"
+        IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}"
+        SERVICE_ACCOUNT="${{ env.JOB_SERVICE_ACCOUNT }}"
+
+        if gcloud run jobs describe "$JOB_NAME" --region "$REGION" --project "$PROJECT_ID" &> /dev/null; then
+          echo "Job $JOB_NAME already exists. Updating..."
+          gcloud run jobs update "$JOB_NAME" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --service-account "$SERVICE_ACCOUNT" \
+            --project "$PROJECT_ID" \
+            --max-retries=0 \
+            --parallelism=1
+        else
+          echo "Job $JOB_NAME does not exist. Creating..."
+          gcloud run jobs create "$JOB_NAME" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --service-account "$SERVICE_ACCOUNT" \
+            --project "$PROJECT_ID" \
+            --max-retries=0 \
+            --parallelism=1
+        fi
