@@ -37,4 +37,6 @@ jobs:
         channelId: live
         projectId: ${{ env.PROJECT_ID }}
         entryPoint: ./firebase-hosting
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
 
