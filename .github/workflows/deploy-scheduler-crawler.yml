@@ -1,0 +1,57 @@
+name: Deploy Cloud Scheduler Crawler Job
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: granblue-247222
+  REGION: asia-northeast1
+  SCHEDULER_JOB_NAME: collection-crawler
+  SCHEDULE: "5-59/20 * * * *"
+  CLOUD_RUN_JOB_NAME: cloud-run-crawler
+  SERVICE_ACCOUNT: cloud-run-invoker@granblue-247222.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Google Auth
+      id: auth
+      uses: 'google-github-actions/auth@v1'
+      with:
+        workload_identity_provider: 'projects/964139672422/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        service_account: 'github-deployer@granblue-247222.iam.gserviceaccount.com'
+
+    - name: Deploy Scheduler Job
+      run: |
+        #!/bin/bash
+        set -e
+
+        if gcloud scheduler jobs describe ${{ env.SCHEDULER_JOB_NAME }} --location ${{ env.REGION }} --project ${{ env.PROJECT_ID }} &> /dev/null; then
+          echo "Scheduler job ${{ env.SCHEDULER_JOB_NAME }} already exists. Updating..."
+          gcloud scheduler jobs update http ${{ env.SCHEDULER_JOB_NAME }} \
+            --schedule="${{ env.SCHEDULE }}" \
+            --uri="https://run.googleapis.com/v2/projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/jobs/${{ env.CLOUD_RUN_JOB_NAME }}:run" \
+            --http-method=POST \
+            --oauth-service-account-email="${{ env.SERVICE_ACCOUNT }}" \
+            --location=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
+        else
+          echo "Scheduler job ${{ env.SCHEDULER_JOB_NAME }} does not exist. Creating..."
+          gcloud scheduler jobs create http ${{ env.SCHEDULER_JOB_NAME }} \
+            --schedule="${{ env.SCHEDULE }}" \
+            --uri="https://run.googleapis.com/v2/projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/jobs/${{ env.CLOUD_RUN_JOB_NAME }}:run" \
+            --http-method=POST \
+            --oauth-service-account-email="${{ env.SERVICE_ACCOUNT }}" \
+            --location=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
+        fi
