@@ -10,7 +10,7 @@ on:
 env:
   PROJECT_ID: granblue-247222
   REGION: asia-northeast1
-  SCHEDULER_JOB_NAME: collection-crawler
+  SCHEDULER_JOB_NAME: cloud-run-crawler-scheduler-trigger
   SCHEDULE: "5-59/20 * * * *"
   CLOUD_RUN_JOB_NAME: cloud-run-crawler
   SERVICE_ACCOUNT: cloud-run-invoker@granblue-247222.iam.gserviceaccount.com

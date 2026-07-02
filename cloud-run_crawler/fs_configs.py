@@ -15,7 +15,8 @@ def get_configs():
     global useragent
     cookie = doc["cookie"]
     useragent = doc["useragent"]
-    print("init cookie: %s" % cookie)
+    # don't log the cookie itself - it's the game session secret
+    print("init cookie: %d chars" % len(cookie))
     print("init useragent: %s" % useragent)
 
 
@@ -23,4 +24,4 @@ def set_cookie():
     db.collection('configs').document('private_config').update({
         "cookie": cookie
     })
-    print("store cookie: %s" % cookie)
+    print("store cookie: %d chars" % len(cookie))

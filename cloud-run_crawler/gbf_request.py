@@ -7,14 +7,39 @@ import json
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-t = requests.get("https://game.granbluefantasy.jp")
-tree = etree.HTML(t.text)
-txt = tree.xpath('/html/head/script[@id="server-props"]')[0].text
-j = json.loads(txt)
-xversion = j['version']
-print("X-VERSION: %s" % xversion)
+TIMEOUT = (5, 30)  # (connect, read) seconds
+
+session = None
+xversion = None
+
+def init():
+    # lazy one-time setup: shared session with retries + X-VERSION scrape.
+    # runs on the first get() call, never again.
+    global session, xversion
+    if session is not None:
+        return
+
+    s = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=frozenset(['GET', 'POST'])
+    )
+    s.mount('https://', HTTPAdapter(max_retries=retry))
+
+    t = s.get("https://game.granbluefantasy.jp", timeout=TIMEOUT)
+    tree = etree.HTML(t.text)
+    txt = tree.xpath('/html/head/script[@id="server-props"]')[0].text
+    j = json.loads(txt)
+    xversion = j['version']
+    print("X-VERSION: %s" % xversion)
+
+    session = s
 
 def get(url):
+    init()
+
     scookie = SimpleCookie()
     scookie.load(fs_configs.cookie)
     cookiesdict = {}
@@ -23,17 +48,9 @@ def get(url):
 
     cookies = cookiejar_from_dict(cookiesdict)
 
-    # --- Retry Logic ---
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=0.5,
-        status_forcelist=[500, 502, 503, 504],
-        allowed_methods=frozenset(['GET', 'POST'])
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('https://', adapter)
-    # --- End Retry Logic ---
+    # cookie state lives in fs_configs.cookie, not in the session jar -
+    # clear the jar so each request sends exactly the stored cookie
+    session.cookies.clear()
 
     resp = session.get(
         "https://game.granbluefantasy.jp/%s%s" % (fs_configs.teamraid, url),
@@ -47,7 +64,8 @@ def get(url):
             "X-Requested-With": "XMLHttpRequest",
             "Connection": "keep-alive",
         },
-        cookies=cookies
+        cookies=cookies,
+        timeout=TIMEOUT
     )
 
     rt_cookie = {}
