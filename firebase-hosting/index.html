@@ -587,7 +587,9 @@ function RenderCrewChart() {
             label: c.name || c.id,
             backgroundColor: colors[ci],
             borderColor: colors[ci],
-            data: points.map((v,j,a)=>(a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1]),
+            // speed = 20-min point delta; the 07:00 slot is anchored at 0
+            // (no battling before 07:00, so nothing is earned into that slot)
+            data: points.map((v,j,a)=> j == 0 ? 0 : ((a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1])),
             fill: false
         };
     });
