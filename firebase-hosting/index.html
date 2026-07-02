@@ -229,13 +229,24 @@
             }
         },
         LoadCrewSearchGraph: (raid) => {
+            // stop listening for personal_border updates while in crew search
+            if (unsubscribePBorder != null) { unsubscribePBorder(); unsubscribePBorder = null; }
             $('#bookmaker').hide();
             $('.pborder').hide();
             $('.crewsearch').show();
             $('form input[name=raid]')[0].value = raid;
         },
         LoadPersonalBorderGraph: (raid, day) => {
-            db.collection('personal_border').doc(raid).get().then((doc)=>{
+            // detach the previous realtime listener before attaching a new one
+            if (unsubscribePBorder != null) unsubscribePBorder();
+            // force a full chart rebuild on the first snapshot of a new raid/day
+            if (pborderdata != null) { pborderdata.destroy(); pborderdata = null; }
+            if (pborderdatadiff != null) { pborderdatadiff.destroy(); pborderdatadiff = null; }
+            $('.pborder').show();
+            $('.crewsearch').hide();
+            unsubscribePBorder = db.collection('personal_border').doc(raid).onSnapshot((doc)=>{
+                if (!doc.exists || doc.data()['records'] == null) return;
+                console.log('personal_border snapshot:', raid, doc.data()['records'].length, 'records', new Date().toISOString());
                 dataset_amt = historicalData[raid].border.length;
                 data = doc.data()['records'].reduce((t,e)=>{
                     thisDateTime = new Date(e.datetime.seconds*1000)
@@ -279,19 +290,26 @@
                         hidden: !display
                     })
                 }
-                $('.pborder').show();
-                $('.crewsearch').hide();
-                if (pborderdata != null) pborderdata.destroy();
-                if (pborderdatadiff != null) pborderdatadiff.destroy();
-                pborderdata = new Chart(
-                    $('#pborderdata')[0].getContext('2d'),
-                    GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
-                );
-                pborderdatadiff = new Chart(
-                    $('#pborderdatadiff')[0].getContext('2d'),
-                    GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
-                );
-            })
+                if (pborderdata == null) {
+                    // first snapshot for this raid/day: build the charts
+                    pborderdata = new Chart(
+                        $('#pborderdata')[0].getContext('2d'),
+                        GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
+                    );
+                    pborderdatadiff = new Chart(
+                        $('#pborderdatadiff')[0].getContext('2d'),
+                        GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
+                    );
+                } else {
+                    // realtime update: swap data in place so legend toggles survive
+                    pborderdata.data.labels = dataLabel;
+                    dataSet.forEach((d,i)=>{ pborderdata.data.datasets[i].data = d.data; });
+                    pborderdata.update('none');
+                    pborderdatadiff.data.labels = dataLabel;
+                    dataSetDiff.forEach((d,i)=>{ pborderdatadiff.data.datasets[i].data = d.data; });
+                    pborderdatadiff.update('none');
+                }
+            }, (err)=>console.error('personal_border listener error:', err))
         },
         
     }
@@ -372,6 +390,7 @@
 <!-- Chart.js Settings -->
 <script id="graph-render">
 var pborderdata, pborderdatadiff, crewdatadiff;
+var unsubscribePBorder = null;
 var colors=['rgb(255,99,132)','rgb(255,159,64)','rgb(255,205,86)','rgb(75,192,192)','rgb(102,204,0)','rgb(127,0,255)'];
 function GraphConfig(title, datalabel, datasets){
     return {
