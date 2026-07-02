@@ -568,39 +568,86 @@ function AttachCrewListeners() {
     });
 }
 
-// Build the speed (20-min point delta) series for each crew on the selected
-// day and draw/update the chart. Time axis is fixed 07:00-24:00 JST inclusive.
+// Bucket a crew's records onto the day's 20-min grid, returning cumulative
+// points per slot (null where no datapoint exists).
+function CrewPointsOnGrid(crew, slots) {
+    return slots.map((s)=>{
+        var rec = (crew.records || []).find((e)=>{
+            var t = new Date(e.datetime.seconds*1000);
+            return t.between(s, s.addMinutes(20));
+        });
+        return rec ? rec.point : null;
+    });
+}
+
+// Chart config for the crew view: a line chart on the left axis (speed, floored
+// at 0) plus, when comparing two crews, a bar series on a right axis centered
+// at 0 (the accumulated within-day lead). Kept separate from GraphConfig so the
+// personal-border charts stay single-axis.
+function CrewChartConfig(title, labels, datasets, diffBound) {
+    var scales = { y: { position: 'left', beginAtZero: true } };
+    if (diffBound != null) {
+        var b = Math.max(diffBound, 1); // symmetric bounds keep 0 at the center
+        scales.yDiff = { position: 'right', min: -b, max: b, grid: { drawOnChartArea: false } };
+    }
+    return {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            interaction: { intersect: false, mode: 'index' },
+            plugins: { title: { display: true, text: title } },
+            scales: scales
+        }
+    };
+}
+
+// Build the speed (20-min point delta) series for each crew on the selected day
+// and draw/update the chart. Time axis is fixed 07:00-24:00 JST inclusive. With
+// two crews, also draw the accumulated lead (crewA - crewB) as bars on a
+// zero-centered right axis.
 function RenderCrewChart() {
     var raid = crewState.raid, day = crewState.day;
     var slots = CreateTimeframe(raid, day);
     var labels = slots.map((e,i,a)=>(i == a.length-1 && e.toJstHM() == '00:00') ? '24:00' : e.toJstHM());
-    var datasets = crewState.crews.map((c,ci)=>{
-        // bucket this crew's points onto the 20-min grid, then diff -> speed
-        var points = slots.map((s)=>{
-            var rec = (c.records || []).find((e)=>{
-                var t = new Date(e.datetime.seconds*1000);
-                return t.between(s, s.addMinutes(20));
-            });
-            return rec ? rec.point : null;
+    var crewPoints = crewState.crews.map((c)=>CrewPointsOnGrid(c, slots));
+    // crew speed lines on the left axis
+    var datasets = crewState.crews.map((c,ci)=>({
+        type: 'line',
+        label: c.name || c.id,
+        backgroundColor: colors[ci],
+        borderColor: colors[ci],
+        yAxisID: 'y',
+        // speed = 20-min point delta; the 07:00 slot is anchored at 0
+        // (no battling before 07:00, so nothing is earned into that slot)
+        data: crewPoints[ci].map((v,j,a)=> j == 0 ? 0 : ((a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1])),
+        fill: false
+    }));
+    // accumulated within-day lead of crewA over crewB, as bars on the right axis
+    var diffBound = null;
+    if (crewState.crews.length === 2) {
+        var A = crewPoints[0], B = crewPoints[1], baseA = A[0], baseB = B[0];
+        // (A[j]-A[07:00]) - (B[j]-B[07:00]) => starts at 0, +ve when crewA leads
+        var diff = A.map((v,j)=>(A[j]==null||B[j]==null||baseA==null||baseB==null) ? null
+                                 : (A[j]-baseA) - (B[j]-baseB));
+        diffBound = diff.reduce((m,v)=>(v==null ? m : Math.max(m, Math.abs(v))), 0);
+        datasets.push({
+            type: 'bar',
+            label: 'lead: ' + (crewState.crews[0].name||crewState.crews[0].id) + ' - ' + (crewState.crews[1].name||crewState.crews[1].id),
+            backgroundColor: 'rgba(54,162,235,0.35)',
+            borderColor: 'rgba(54,162,235,0.8)',
+            yAxisID: 'yDiff',
+            order: 1, // draw bars behind the speed lines
+            data: diff
         });
-        return {
-            label: c.name || c.id,
-            backgroundColor: colors[ci],
-            borderColor: colors[ci],
-            // speed = 20-min point delta; the 07:00 slot is anchored at 0
-            // (no battling before 07:00, so nothing is earned into that slot)
-            data: points.map((v,j,a)=> j == 0 ? 0 : ((a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1])),
-            fill: false
-        };
-    });
-    var title = raid + ' day ' + day + ' crew speed';
-    // rebuild only when the number of series changes (1 <-> 2 crews); otherwise
-    // swap data in place so legend toggles survive realtime updates
+    }
+    var title = raid + ' day ' + day + ' crew speed' + (diffBound != null ? ' (+ accumulated lead)' : '');
+    // rebuild when the series count changes (1 line <-> 2 lines + diff bar);
+    // otherwise swap data in place so legend toggles survive realtime updates
     if (crewdatadiff == null || crewdatadiff.data.datasets.length != datasets.length) {
         if (crewdatadiff != null) crewdatadiff.destroy();
         crewdatadiff = new Chart(
             $('#crew')[0].getContext('2d'),
-            GraphConfig(title, labels, datasets)
+            CrewChartConfig(title, labels, datasets, diffBound)
         );
     } else {
         crewdatadiff.data.labels = labels;
@@ -608,6 +655,11 @@ function RenderCrewChart() {
             crewdatadiff.data.datasets[i].data = d.data;
             crewdatadiff.data.datasets[i].label = d.label;
         });
+        if (diffBound != null) {
+            var b = Math.max(diffBound, 1);
+            crewdatadiff.options.scales.yDiff.min = -b;
+            crewdatadiff.options.scales.yDiff.max = b;
+        }
         crewdatadiff.options.plugins.title.text = title;
         crewdatadiff.update('none');
     }
