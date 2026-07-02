@@ -257,7 +257,8 @@
                     })
                 },CreateTimeframe(raid,day).map((e)=>[e].concat(Array.from({length:dataset_amt}))))
                 datat = transpose(data)
-                dataLabel = datat[0].map((e)=>e.toLyTime())
+                // JST hh:mm; the trailing midnight slot is the day-end result, show as 24:00
+                dataLabel = datat[0].map((e,i,a)=>(i == a.length-1 && e.toJstHM() == '00:00') ? '24:00' : e.toJstHM())
                 dataSet = []
                 dataSetDiff = []
                 for (i=0; i<dataset_amt; i++) {
@@ -334,18 +335,29 @@
     Date.prototype.between = function(startDate, endDate) {
         return (startDate <= this) && (this <= endDate)
     }
+    Date.prototype.floorTo20m = function () {
+        // game data points sit on :00/:20/:40 JST exactly, but configs/history
+        // date[0] is hand-written with arbitrary min/sec offsets - snap to grid
+        return new Date(this.valueOf() - this.valueOf() % 1200e3);
+    }
+    Date.prototype.toJstHM = function () {
+        // display always in Japan time regardless of viewer timezone
+        return this.toLocaleTimeString('en-GB', {timeZone: 'Asia/Tokyo', hour12: false, hour: '2-digit', minute: '2-digit'});
+    }
     function GetDateTimeInRaid(raid, date){
         key = raid
         raidStartDate = new Date(historicalData[key].date[0].seconds*1000)
+        // ends are the true day boundary (24:00 / next-day 07:00) so the
+        // day-final datapoint gets its own slot; both ends snapped to the 20m grid
         switch(date){
             case -1:
                 start = raidStartDate.addHours(18)
-                end = raidStartDate.addDays(1).addHours(23).addMinutes(59)
-                return [start, end]
+                end = raidStartDate.addDays(2)
+                return [start.floorTo20m(), end.floorTo20m()]
             case 0:
                 start = raidStartDate.addDays(2).addHours(7)
-                end = raidStartDate.addDays(3).addHours(6).addMinutes(59)
-                return [start, end]
+                end = raidStartDate.addDays(3).addHours(7)
+                return [start.floorTo20m(), end.floorTo20m()]
             case 1:
             case 2:
             case 3:
@@ -353,12 +365,12 @@
             case 5:
                 if (key == "teamraid058") {
                     start = raidStartDate.addDays(1 + date).addHours(7)
-                    end = raidStartDate.addDays(1 + date).addHours(23).addMinutes(59)
+                    end = raidStartDate.addDays(1 + date).addHours(24)
                 } else {
                     start = raidStartDate.addDays(2 + date).addHours(7)
-                    end = raidStartDate.addDays(2 + date).addHours(23).addMinutes(59)
+                    end = raidStartDate.addDays(2 + date).addHours(24)
                 }
-                return [start, end]
+                return [start.floorTo20m(), end.floorTo20m()]
             default:
                 return "bad"
         }
@@ -367,7 +379,8 @@
         startend = GetDateTimeInRaid(raid, day)
         current = startend[0]
         rt = []
-        for (current = startend[0]; current < startend[1]; current = current.addMinutes(20)) {
+        // <= so the day-end boundary (24:00) is included as the last slot
+        for (current = startend[0]; current <= startend[1]; current = current.addMinutes(20)) {
             rt.push(current)
         }
         return rt
