@@ -144,19 +144,29 @@
         <!-- /.Chart 2 -->
         <!-- Crew Search Box -->
         <div class="crewsearch card">
-          <div class="card-header">Crew Search</div>
+          <div class="card-header">Crew Search <small class="text-muted" id="crewraidlabel"></small></div>
           <div class="card-body">
             <div class="container">
-              <form onsubmit="GetCrewData()">
+              <form id="crewform" onsubmit="SubmitCrew(); return false;">
                 <div class="form-group">
-                  <input type="hidden" name="raid" value="46">
-                  <label for="crew_id">Crew id / name:</label>
-                  <input type="text" class="form-control" name="crew_id" placeholder="Enter crew id">
+                  <label for="crewA">Crew id:</label>
+                  <input type="text" class="form-control" id="crewA" value="1150181" placeholder="Enter crew id">
+                </div>
+                <div class="form-group">
+                  <label for="crewB">Compare crew id (optional):</label>
+                  <input type="text" class="form-control" id="crewB" placeholder="Enter another crew id">
                 </div>
                 <button type="submit" class="btn btn-default">Submit</button>
               </form>
+              <!-- Day switcher: swaps which day's slice is rendered (no refetch) -->
+              <div class="btn-group mt-3 mb-3" role="group" id="crewdays">
+                <button type="button" class="btn btn-outline-primary" onclick="SelectDay(1)">Day1</button>
+                <button type="button" class="btn btn-outline-primary" onclick="SelectDay(2)">Day2</button>
+                <button type="button" class="btn btn-outline-primary" onclick="SelectDay(3)">Day3</button>
+                <button type="button" class="btn btn-outline-primary" onclick="SelectDay(4)">Day4</button>
+              </div>
               <canvas id="crew"></canvas>
-            </p>
+            </div>
           </div>
         </div>
         <!-- /.Crew Search Box -->
@@ -231,12 +241,17 @@
         LoadCrewSearchGraph: (raid) => {
             // stop listening for personal_border updates while in crew search
             if (unsubscribePBorder != null) { unsubscribePBorder(); unsubscribePBorder = null; }
-            $('#bookmaker').hide();
             $('.pborder').hide();
             $('.crewsearch').show();
-            $('form input[name=raid]')[0].value = raid;
+            // Resolve which raid+day to show by default. Only the newest raid
+            // honours the "derive today" rule (interval/pre -> previous event's
+            // day4); older raids clicked explicitly just show their day4.
+            var rd = (raid === newestRaid) ? CrewDefaultRaidDay() : [raid, 4];
+            ShowCrewSearch(rd[0], rd[1]);
         },
         LoadPersonalBorderGraph: (raid, day) => {
+            // leaving crew search: stop its realtime listeners too
+            if (unsubscribeCrew.length) { unsubscribeCrew.forEach((u)=>u()); unsubscribeCrew = []; }
             // detach the previous realtime listener before attaching a new one
             if (unsubscribePBorder != null) unsubscribePBorder();
             // force a full chart rebuild on the first snapshot of a new raid/day
@@ -427,54 +442,110 @@ function GraphConfig(title, datalabel, datasets){
     };
 }
 
-function GetCrewData() {
-    raid = $('form input[name=raid]')[0].value
-    input = $('form input[name=crew_id]')[0].value
-    if (isNaN(input)) {
-        db.collection('crew').where('name','==',input).limit(1).get().then(
-            s=>s.forEach(d=>{
-                console.log("searched", input, "has id", d.id);
-                draw_graph(d.id);
-            })
-        )
-    } else {
-        draw_graph(input)
-    }
-    function draw_graph(crew_id) {
-        db.collection('crew').doc(crew_id).collection('records').doc(raid).get().then((doc)=>{
-        data = doc.data()['records'].reduce((t,e)=>{
-            thisDateTime = new Date(e.datetime.seconds*1000)
-            return t.map((day)=>{
-                return day.map((row)=>{
-                    if (thisDateTime.between(row[0], row[0].addMinutes(20))) {
-                        return [row[0], e.point]
-                    } else {
-                        return row
-                    }
-                })
-            })
-        },Array.from({length:4},(x,i)=>i+1).map((e)=>CreateTimeframe(raid,e).map((x)=>[x,null])))
-        dataSetDiff = []
-        header = transpose(data[0])[0].map((e)=>e.toLyTime())
-        for (i=0; i<4; i++) {
-            datat = transpose(data[i])
-            dataSetDiff.push({
-                label: "Day" + (i+1),
-                backgroundColor: colors[i],
-                borderColor: colors[i],
-                data: datat[1].map((v,j,a)=>{
-                    if (a[j]==null||a[j-1]==null) return null
-                    return a[j]-a[j-1]
-                }),
-                fill: false
-            })
-        }
+// ==== Crew search (id-only, per-day, up to 2 crews, realtime) ====
+// crewState holds everything the render needs; listeners fill in .records live,
+// SelectDay swaps which day is drawn from those same cached records (no refetch).
+var crewState = { raid: null, day: null, crews: [] };
+var unsubscribeCrew = [];
+
+// Resolve the default (raid, day) for the crew page, mirroring the landing
+// page's day derivation but constrained to fighting days (1-4). If the newest
+// raid hasn't reached day1 yet (pre/interval), fall back to the PREVIOUS
+// event's day4 - that's the last real fighting day. If it's mid/post event,
+// use the current/most-recent fighting day.
+function CrewDefaultRaidDay() {
+    var pos = Array.from({length:6},(x,i)=>[4-i, GetDateTimeInRaid(newestRaid,4-i)[0]])
+                   .find((e)=>(e[1] < new Date()));
+    if (pos && pos[0] >= 1) return [newestRaid, pos[0]];
+    // before day1 of the newest raid (or newest raid entirely in the future)
+    var keys = Object.keys(historicalData); // newest-first
+    var prev = keys[keys.indexOf(newestRaid) + 1];
+    return prev ? [prev, 4] : [newestRaid, 4];
+}
+
+// Switch into the crew view for a given raid+day and (re)attach listeners.
+function ShowCrewSearch(raid, day) {
+    crewState.raid = raid;
+    crewState.day = day;
+    $('#crewraidlabel').text('(' + raid + ')');
+    $('#crewdays button').removeClass('active').eq(day - 1).addClass('active');
+    AttachCrewListeners();
+}
+
+// Called by the form submit: crew ids may have changed, so tear down and
+// re-attach listeners for the current inputs against the current raid.
+function SubmitCrew() { AttachCrewListeners(); }
+
+// Called by the Day1-4 buttons: same crews/raid, just render a different day
+// from the records we already hold - instant, no network round-trip.
+function SelectDay(day) {
+    crewState.day = day;
+    $('#crewdays button').removeClass('active').eq(day - 1).addClass('active');
+    RenderCrewChart();
+}
+
+// Attach an onSnapshot listener per crew id in the inputs. Each crew's records
+// doc (crew/{id}/records/{raid}) holds every day's data points; a snapshot
+// updates that crew's cache and re-renders the current day live.
+function AttachCrewListeners() {
+    unsubscribeCrew.forEach((u)=>u());
+    unsubscribeCrew = [];
+    var ids = [$('#crewA').val(), $('#crewB').val()]
+              .map((s)=>String(s == null ? '' : s).trim())
+              .filter((s)=>s.length > 0);
+    crewState.crews = ids.map((id)=>({ id: id, records: null }));
+    RenderCrewChart(); // draw an empty frame immediately; snapshots fill it in
+    crewState.crews.forEach((c)=>{
+        var u = db.collection('crew').doc(c.id).collection('records').doc(crewState.raid)
+            .onSnapshot((doc)=>{
+                c.records = (doc.exists && doc.data() && doc.data()['records']) || [];
+                console.log('crew snapshot:', c.id, crewState.raid, c.records.length, 'records', new Date().toISOString());
+                RenderCrewChart();
+            }, (err)=>console.error('crew listener error:', c.id, err));
+        unsubscribeCrew.push(u);
+    });
+}
+
+// Build the speed (20-min point delta) series for each crew on the selected
+// day and draw/update the chart. Time axis is fixed 07:00-24:00 JST inclusive.
+function RenderCrewChart() {
+    var raid = crewState.raid, day = crewState.day;
+    var slots = CreateTimeframe(raid, day);
+    var labels = slots.map((e,i,a)=>(i == a.length-1 && e.toJstHM() == '00:00') ? '24:00' : e.toJstHM());
+    var datasets = crewState.crews.map((c,ci)=>{
+        // bucket this crew's points onto the 20-min grid, then diff -> speed
+        var points = slots.map((s)=>{
+            var rec = (c.records || []).find((e)=>{
+                var t = new Date(e.datetime.seconds*1000);
+                return t.between(s, s.addMinutes(20));
+            });
+            return rec ? rec.point : null;
+        });
+        return {
+            label: c.id,
+            backgroundColor: colors[ci],
+            borderColor: colors[ci],
+            data: points.map((v,j,a)=>(a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1]),
+            fill: false
+        };
+    });
+    var title = raid + ' day ' + day + ' crew speed';
+    // rebuild only when the number of series changes (1 <-> 2 crews); otherwise
+    // swap data in place so legend toggles survive realtime updates
+    if (crewdatadiff == null || crewdatadiff.data.datasets.length != datasets.length) {
         if (crewdatadiff != null) crewdatadiff.destroy();
         crewdatadiff = new Chart(
             $('#crew')[0].getContext('2d'),
-            GraphConfig('Day1 - Day4 speed', header, dataSetDiff)
+            GraphConfig(title, labels, datasets)
         );
-    })
+    } else {
+        crewdatadiff.data.labels = labels;
+        datasets.forEach((d,i)=>{
+            crewdatadiff.data.datasets[i].data = d.data;
+            crewdatadiff.data.datasets[i].label = d.label;
+        });
+        crewdatadiff.options.plugins.title.text = title;
+        crewdatadiff.update('none');
     }
 }
 </script>
