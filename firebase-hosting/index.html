@@ -148,15 +148,22 @@
           <div class="card-body">
             <div class="container">
               <form id="crewform" onsubmit="SubmitCrew(); return false;">
-                <div class="form-group">
-                  <label for="crewA">Crew id:</label>
-                  <input type="text" class="form-control" id="crewA" value="1150181" placeholder="Enter crew id">
+                <div class="form-row align-items-end">
+                  <div class="form-group col-auto mb-2">
+                    <label for="crewA" class="mb-1">Crew id / name:</label>
+                    <input type="text" class="form-control" id="crewA" value="1150181" maxlength="10" style="width:12em">
+                    <!-- shown only when a name matches >1 crew; swapping reloads the graph -->
+                    <select class="form-control mt-1 d-none" id="crewAsel" style="width:12em" onchange="ReloadCrews()"></select>
+                  </div>
+                  <div class="form-group col-auto mb-2">
+                    <label for="crewB" class="mb-1">Compare id / name:</label>
+                    <input type="text" class="form-control" id="crewB" maxlength="10" placeholder="optional" style="width:12em">
+                    <select class="form-control mt-1 d-none" id="crewBsel" style="width:12em" onchange="ReloadCrews()"></select>
+                  </div>
+                  <div class="form-group col-auto mb-2">
+                    <button type="submit" class="btn btn-default">Submit</button>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="crewB">Compare crew id (optional):</label>
-                  <input type="text" class="form-control" id="crewB" placeholder="Enter another crew id">
-                </div>
-                <button type="submit" class="btn btn-default">Submit</button>
               </form>
               <!-- Day switcher: swaps which day's slice is rendered (no refetch) -->
               <div class="btn-group mt-3 mb-3" role="group" id="crewdays">
@@ -442,11 +449,15 @@ function GraphConfig(title, datalabel, datasets){
     };
 }
 
-// ==== Crew search (id-only, per-day, up to 2 crews, realtime) ====
+// ==== Crew search (id-or-name, per-day, up to 2 crews, realtime) ====
 // crewState holds everything the render needs; listeners fill in .records live,
 // SelectDay swaps which day is drawn from those same cached records (no refetch).
+// slotMatches[slot] caches the {id,name} candidates a slot's input resolved to
+// (>1 when a name matches several crews) so the dropdown can switch without a
+// re-query.
 var crewState = { raid: null, day: null, crews: [] };
 var unsubscribeCrew = [];
+var slotMatches = { A: [], B: [] };
 
 // Resolve the default (raid, day) for the crew page, mirroring the landing
 // page's day derivation but constrained to fighting days (1-4). If the newest
@@ -463,18 +474,72 @@ function CrewDefaultRaidDay() {
     return prev ? [prev, 4] : [newestRaid, 4];
 }
 
-// Switch into the crew view for a given raid+day and (re)attach listeners.
+// Switch into the crew view for a given raid+day, then resolve the inputs and
+// (re)attach listeners against the new raid.
 function ShowCrewSearch(raid, day) {
     crewState.raid = raid;
     crewState.day = day;
     $('#crewraidlabel').text('(' + raid + ')');
     $('#crewdays button').removeClass('active').eq(day - 1).addClass('active');
-    AttachCrewListeners();
+    SubmitCrew();
 }
 
-// Called by the form submit: crew ids may have changed, so tear down and
-// re-attach listeners for the current inputs against the current raid.
-function SubmitCrew() { AttachCrewListeners(); }
+// Called by the form submit: resolve both inputs (id or name -> {id,name}
+// candidates), then rebuild the crew list and re-attach listeners.
+function SubmitCrew() {
+    Promise.all([ResolveSlot('A'), ResolveSlot('B')]).then(ReloadCrews);
+}
+
+// Resolve one input slot to a list of {id,name} candidates and populate its
+// dropdown. A numeric value is taken as an id (name fetched for the legend);
+// text is treated as a crew name and may match several crews.
+function ResolveSlot(slot) {
+    var val = String($('#crew' + slot).val() || '').trim();
+    var sel = $('#crew' + slot + 'sel');
+    if (val === '') {
+        slotMatches[slot] = [];
+        sel.addClass('d-none').empty();
+        return Promise.resolve();
+    }
+    if (!isNaN(val)) {
+        // an id: look up its name so the legend can show the name, not the id
+        return db.collection('crew').doc(val).get().then((doc)=>{
+            var name = (doc.exists && doc.data() && doc.data().name) || val;
+            slotMatches[slot] = [{ id: val, name: name }];
+            sel.addClass('d-none').empty();
+        }).catch(()=>{ slotMatches[slot] = [{ id: val, name: val }]; sel.addClass('d-none').empty(); });
+    }
+    // a name: equality query, which may return multiple crews sharing the name
+    return db.collection('crew').where('name', '==', val).get().then((snap)=>{
+        var matches = [];
+        snap.forEach((d)=>matches.push({ id: d.id, name: (d.data().name || val) }));
+        slotMatches[slot] = matches;
+        if (matches.length > 1) {
+            // let the user pick which id; swapping the option reloads the graph
+            sel.empty();
+            matches.forEach((m)=>sel.append('<option value="' + m.id + '">' + m.id + '</option>'));
+            sel.removeClass('d-none');
+        } else {
+            sel.addClass('d-none').empty();
+        }
+    });
+}
+
+// Build crewState.crews from each slot's currently-selected candidate and
+// (re)attach listeners. Called after resolution and on every dropdown change.
+function ReloadCrews() {
+    var crews = [];
+    ['A', 'B'].forEach((slot)=>{
+        var matches = slotMatches[slot] || [];
+        if (matches.length === 0) return;
+        var sel = $('#crew' + slot + 'sel');
+        var id = (matches.length > 1 && !sel.hasClass('d-none')) ? sel.val() : matches[0].id;
+        var m = matches.find((x)=>x.id === id) || matches[0];
+        crews.push({ id: m.id, name: m.name, records: null });
+    });
+    crewState.crews = crews;
+    AttachCrewListeners();
+}
 
 // Called by the Day1-4 buttons: same crews/raid, just render a different day
 // from the records we already hold - instant, no network round-trip.
@@ -484,18 +549,15 @@ function SelectDay(day) {
     RenderCrewChart();
 }
 
-// Attach an onSnapshot listener per crew id in the inputs. Each crew's records
-// doc (crew/{id}/records/{raid}) holds every day's data points; a snapshot
-// updates that crew's cache and re-renders the current day live.
+// Attach an onSnapshot listener per resolved crew. Each crew's records doc
+// (crew/{id}/records/{raid}) holds every day's data points; a snapshot updates
+// that crew's cache and re-renders the current day live.
 function AttachCrewListeners() {
     unsubscribeCrew.forEach((u)=>u());
     unsubscribeCrew = [];
-    var ids = [$('#crewA').val(), $('#crewB').val()]
-              .map((s)=>String(s == null ? '' : s).trim())
-              .filter((s)=>s.length > 0);
-    crewState.crews = ids.map((id)=>({ id: id, records: null }));
     RenderCrewChart(); // draw an empty frame immediately; snapshots fill it in
     crewState.crews.forEach((c)=>{
+        c.records = null;
         var u = db.collection('crew').doc(c.id).collection('records').doc(crewState.raid)
             .onSnapshot((doc)=>{
                 c.records = (doc.exists && doc.data() && doc.data()['records']) || [];
@@ -522,7 +584,7 @@ function RenderCrewChart() {
             return rec ? rec.point : null;
         });
         return {
-            label: c.id,
+            label: c.name || c.id,
             backgroundColor: colors[ci],
             borderColor: colors[ci],
             data: points.map((v,j,a)=>(a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1]),
