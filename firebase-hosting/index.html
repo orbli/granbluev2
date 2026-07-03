@@ -225,7 +225,10 @@
             // takes the raid KEY so it can read the event number from it
             historyObject = historicalData[raid]
             num = +raid.replace(/\D/g, '')
-            if (historyObject.date[0].seconds*1000 == 1631113307000) {
+            if (raid == "teamraid058") {
+                // teamraid058 ran an irregular 6-day schedule with NO interval day
+                // (continuous data 09-09..09-15). Keyed by raid id now that date[0]
+                // is the true prelim start (the old ==epoch check would break).
                 rt = [
                     [-1, "Pre"],
                     [1, "Day1"],
@@ -308,14 +311,22 @@
         // display always in Japan time regardless of viewer timezone
         return this.toLocaleTimeString('en-GB', {timeZone: 'Asia/Tokyo', hour12: false, hour: '2-digit', minute: '2-digit'});
     }
+    function jstMidnight(d){
+        // floor an instant to 00:00 JST of its Japan-calendar day. date[0] is now
+        // the true prelim start (19:00 JST); recovering midnight keeps every day
+        // window offset identical to the old (midnight-anchored) convention.
+        var t = d.getTime() + 9*3600e3;
+        t -= t % 86400e3;
+        return new Date(t - 9*3600e3);
+    }
     function GetDateTimeInRaid(raid, date){
         key = raid
-        raidStartDate = new Date(historicalData[key].date[0].seconds*1000)
+        raidStartDate = jstMidnight(new Date(historicalData[key].date[0].seconds*1000))
         // ends are the true day boundary (24:00 / next-day 07:00) so the
         // day-final datapoint gets its own slot; both ends snapped to the 20m grid
         switch(date){
             case -1:
-                start = raidStartDate.addHours(18)
+                start = raidStartDate.addHours(19)
                 end = raidStartDate.addDays(2)
                 return [start.floorTo20m(), end.floorTo20m()]
             case 0:
@@ -743,11 +754,12 @@ function RenderCrewChart() {
                 history: historicalData,
                 helpers: helpers,
             }})
-            db.collection('configs').doc('public_config').get().then((cfg) => {
-                newestRaid = cfg.data()['teamraid']
-                today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<new Date()))
-                helpers.LoadPersonalBorderGraph(newestRaid, today[0])
-            })
+            // Default raid derives from history dates now (public_config removed):
+            // the newest raid whose prelim start (date[0]) is already in the past.
+            var now = new Date()
+            newestRaid = Object.keys(historicalData).find((k)=> new Date(historicalData[k].date[0].seconds*1000) <= now) || Object.keys(historicalData)[0]
+            today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<now))
+            helpers.LoadPersonalBorderGraph(newestRaid, today[0])
         });
     });
 </script>
