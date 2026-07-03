@@ -75,19 +75,19 @@
             </a>
             <!-- Drow down items -->
             <ul class="nav nav-treeview">
+              <!-- Personal Border: enters the per-raid view; days are switched
+                   in-content (like CrewSearch) so day changes don't re-read -->
+              <li class="nav-item">
+                <a href="#" class="nav-link" @click="helpers.LoadPersonalBorderGraph(key)">
+                  <i class="fas fa-chart-line nav-icon"></i>
+                  <p>Personal Border</p>
+                </a>
+              </li>
               <!-- CrewSearch button -->
               <li class="nav-item">
                 <a href="#" class="nav-link" v-on:click="helpers.LoadCrewSearchGraph(key)">
                   <i class="fas fa-search nav-icon"></i>
                   <p>CrewSearch</p>
-                </a>
-              </li>
-              <li class="nav-header pt-2">Personal Borders:</li>
-              <!-- use vue to dynamically generate sub-items by "v-for" loop -->
-              <li class="nav-item" v-for='i in helpers.GetIndex(value)'>
-                <a href="#" class="nav-link" @click="helpers.LoadPersonalBorderGraph(key,i[0])">
-                  <i class="nav-icon far fa-circle"></i>
-                  <p>{{helpers.GetDate(value,i[0])}} {{i[1]}}</p>
                 </a>
               </li>
             </ul>
@@ -124,6 +124,12 @@
     <!-- Main content -->
     <div class="content">
       <div class="container-fluid">
+        <!-- PB day switcher (built per raid from GetIndex); local day switching -->
+        <div class="pborder card">
+          <div class="card-body">
+            <div class="btn-group" role="group" id="pbdays"></div>
+          </div>
+        </div>
         <!-- Chart 1 -->
         <div class="pborder card">
           <div class="card-body">
@@ -213,27 +219,33 @@
         GetTitle: (historyKey, historyObject) => {
             return historyKey.slice(-2) + historyObject.element
         },
-        GetIndex: (historyObject) => {
-            dStart = new Date(historyObject.date[0].seconds*1000)
-            dEnd = new Date(historyObject.date[1].seconds*1000)
+        GetIndex: (raid) => {
+            // takes the raid KEY so it can read the event number from it
+            historyObject = historicalData[raid]
+            num = +raid.replace(/\D/g, '')
             if (historyObject.date[0].seconds*1000 == 1631113307000) {
-                return rt = [
+                rt = [
                     [-1, "Pre"],
                     [1, "Day1"],
                     [2, "Day2"],
                     [3, "Day3"],
                     [4, "Day4"]
                 ]
+            } else {
+                rt = [
+                    [-1, "Pre"],
+                    [0, "Interval"],
+                    [1, "Day1"],
+                    [2, "Day2"],
+                    [3, "Day3"],
+                    [4, "Day4"]
+                ]
             }
-            rt = [
-                [-1, "Pre"],
-                [0, "Interval"],
-                [1, "Day1"],
-                [2, "Day2"],
-                [3, "Day3"],
-                [4, "Day4"]
-            ]
-            if (dEnd - dStart == 604800000) rt.push([5, "Day5"])
+            // Finals ran 5 days only through event 39; the 4-day format began at
+            // teamraid040 (第40回, Aug 2018). The old duration check (date[1]-date[0]
+            // == 7d) was unreliable - configs/history date[] are hand-entered by
+            // convention, so it both missed and false-positived 5-day events.
+            if (num <= 39) rt.push([5, "Day5"])
             return rt
         },
         GetDate: (historyObject, day) => {
@@ -257,84 +269,12 @@
             ShowCrewSearch(rd[0], rd[1]);
         },
         LoadPersonalBorderGraph: (raid, day) => {
-            // leaving crew search: stop its realtime listeners too
-            if (unsubscribeCrew.length) { unsubscribeCrew.forEach((u)=>u()); unsubscribeCrew = []; }
-            // detach the previous realtime listener before attaching a new one
-            if (unsubscribePBorder != null) unsubscribePBorder();
-            // force a full chart rebuild on the first snapshot of a new raid/day
-            if (pborderdata != null) { pborderdata.destroy(); pborderdata = null; }
-            if (pborderdatadiff != null) { pborderdatadiff.destroy(); pborderdatadiff = null; }
-            $('.pborder').show();
-            $('.crewsearch').hide();
-            unsubscribePBorder = db.collection('personal_border').doc(raid).onSnapshot((doc)=>{
-                if (!doc.exists || doc.data()['records'] == null) return;
-                console.log('personal_border snapshot:', raid, doc.data()['records'].length, 'records', new Date().toISOString());
-                dataset_amt = historicalData[raid].border.length;
-                data = doc.data()['records'].reduce((t,e)=>{
-                    thisDateTime = new Date(e.datetime.seconds*1000)
-                    return t.map((v)=>{
-                        if (thisDateTime.between(v[0], v[0].addMinutes(20))) {
-                            return [v[0]].concat(historicalData[raid].border.map((b)=>e[b]))
-                        } else return v
-                    })
-                },CreateTimeframe(raid,day).map((e)=>[e].concat(Array.from({length:dataset_amt}))))
-                datat = transpose(data)
-                // JST hh:mm; the trailing midnight slot is the day-end result, show as 24:00
-                dataLabel = datat[0].map((e,i,a)=>(i == a.length-1 && e.toJstHM() == '00:00') ? '24:00' : e.toJstHM())
-                dataSet = []
-                dataSetDiff = []
-                for (i=0; i<dataset_amt; i++) {
-                    if (datat[i+1] == null) {
-                        continue;
-                    }
-                    var display;
-                    if (historicalData[raid].border[i] < 10000) {
-                        display = false;
-                    } else {
-                        display = true;
-                    }
-                    dataSet.push({
-                        label: historicalData[raid].border[i],
-                        backgroundColor: colors[i],
-                        borderColor: colors[i],
-                        data: datat[i+1],
-                        fill: false,
-                        hidden: !display
-                    })
-                    dataSetDiff.push({
-                        label: historicalData[raid].border[i],
-                        backgroundColor: colors[i],
-                        borderColor: colors[i],
-                        data: datat[i+1].map((v,j,a)=>{
-                            if (a[j]==null||a[j-1]==null) return null
-                            return a[j]-a[j-1]
-                        }),
-                        fill: false,
-                        hidden: !display
-                    })
-                }
-                if (pborderdata == null) {
-                    // first snapshot for this raid/day: build the charts
-                    pborderdata = new Chart(
-                        $('#pborderdata')[0].getContext('2d'),
-                        GraphConfig(raid+" day "+day+" personal border", dataLabel, dataSet)
-                    );
-                    pborderdatadiff = new Chart(
-                        $('#pborderdatadiff')[0].getContext('2d'),
-                        GraphConfig(raid+" day "+day+' personal border 20m speed', dataLabel, dataSetDiff)
-                    );
-                } else {
-                    // realtime update: swap data in place so legend toggles survive
-                    pborderdata.data.labels = dataLabel;
-                    dataSet.forEach((d,i)=>{ pborderdata.data.datasets[i].data = d.data; });
-                    pborderdata.update('none');
-                    pborderdatadiff.data.labels = dataLabel;
-                    dataSetDiff.forEach((d,i)=>{ pborderdatadiff.data.datasets[i].data = d.data; });
-                    pborderdatadiff.update('none');
-                }
-            }, (err)=>console.error('personal_border listener error:', err))
+            // thin entry point (sidebar + landing). The per-raid doc listener is
+            // attached once by ShowPersonalBorder; switching days is local, so
+            // PB day->day no longer re-reads the document (see graph-render).
+            ShowPersonalBorder(raid, day == null ? PBDefaultDay(raid) : day);
         },
-        
+
     }
     Date.prototype.addDays = function (days) {
         return new Date(this.valueOf() + days * 86400e3);
@@ -447,6 +387,121 @@ function GraphConfig(title, datalabel, datasets){
             },
         }
     };
+}
+
+// ==== Personal border (per-raid doc, local day switching, realtime) ====
+// pbState caches the raid's whole records array; a "day" is just a slice, so
+// switching days re-renders locally with NO document re-read. The onSnapshot
+// listener is (re)attached only when the raid changes or after we detached on
+// nav to crew search.
+var pbState = { raid: null, day: null, records: null };
+
+// Default day when entering a raid's PB view from the sidebar: its last day
+// (Day4, or Day5 for the pre-teamraid040 events). Reuses GetIndex so the
+// event-number rule / special schedules stay authoritative.
+function PBDefaultDay(raid) {
+    var days = helpers.GetIndex(raid);
+    return days[days.length - 1][0];
+}
+
+// Build the day-switcher buttons for a raid from GetIndex (Pre/Interval/Day1-4
+// [+Day5 <=teamraid039]). data-day drives the active highlight.
+function BuildPBDayButtons(raid) {
+    var html = helpers.GetIndex(raid).map((d)=>
+        '<button type="button" class="btn btn-outline-primary" data-day="' + d[0] + '" onclick="SelectPBDay(' + d[0] + ')">' + d[1] + '</button>'
+    ).join('');
+    $('#pbdays').html(html);
+}
+
+// Switch into PB view for a raid+day. Re-attaches the listener only when the
+// raid actually changed (or we left to crew and detached); day-only changes
+// fall through to SelectPBDay, which is local.
+function ShowPersonalBorder(raid, day) {
+    if (unsubscribeCrew.length) { unsubscribeCrew.forEach((u)=>u()); unsubscribeCrew = []; }
+    $('.pborder').show();
+    $('.crewsearch').hide();
+    var raidChanged = (raid !== pbState.raid);
+    if (raidChanged) {
+        pbState.raid = raid;
+        pbState.records = null;
+        // new raid => drop the old charts so RenderPB rebuilds cleanly
+        if (pborderdata != null) { pborderdata.destroy(); pborderdata = null; }
+        if (pborderdatadiff != null) { pborderdatadiff.destroy(); pborderdatadiff = null; }
+        BuildPBDayButtons(raid);
+    }
+    if (raidChanged || unsubscribePBorder == null) AttachPBListener();
+    SelectPBDay(day);
+}
+
+// Local day switch: set the day, highlight its button, re-render from the
+// already-cached records. Zero reads.
+function SelectPBDay(day) {
+    pbState.day = day;
+    $('#pbdays button').removeClass('active');
+    $('#pbdays button[data-day="' + day + '"]').addClass('active');
+    RenderPB();
+}
+
+// Attach the per-raid realtime listener; each snapshot refreshes the cache and
+// re-renders the current day.
+function AttachPBListener() {
+    if (unsubscribePBorder != null) unsubscribePBorder();
+    unsubscribePBorder = db.collection('personal_border').doc(pbState.raid).onSnapshot((doc)=>{
+        if (!doc.exists || doc.data()['records'] == null) return;
+        pbState.records = doc.data()['records'];
+        console.log('personal_border snapshot:', pbState.raid, pbState.records.length, 'records', new Date().toISOString());
+        RenderPB();
+    }, (err)=>console.error('personal_border listener error:', err));
+}
+
+// Render the current (raid, day) slice: bucket records onto the day's 20-min
+// grid, then draw the absolute + 20m-speed charts. Rebuilds on raid change
+// (charts nulled), otherwise swaps data in place so legend toggles survive.
+function RenderPB() {
+    if (pbState.records == null) return;
+    var raid = pbState.raid, day = pbState.day;
+    var dataset_amt = historicalData[raid].border.length;
+    var data = pbState.records.reduce((t,e)=>{
+        var thisDateTime = new Date(e.datetime.seconds*1000);
+        return t.map((v)=>{
+            if (thisDateTime.between(v[0], v[0].addMinutes(20))) {
+                return [v[0]].concat(historicalData[raid].border.map((b)=>e[b]));
+            } else return v;
+        });
+    }, CreateTimeframe(raid, day).map((e)=>[e].concat(Array.from({length:dataset_amt}))));
+    var datat = transpose(data);
+    var dataLabel = datat[0].map((e,i,a)=>(i == a.length-1 && e.toJstHM() == '00:00') ? '24:00' : e.toJstHM());
+    var dataSet = [], dataSetDiff = [];
+    for (var i=0; i<dataset_amt; i++) {
+        if (datat[i+1] == null) continue;
+        var display = historicalData[raid].border[i] >= 10000;
+        dataSet.push({
+            label: historicalData[raid].border[i],
+            backgroundColor: colors[i], borderColor: colors[i],
+            data: datat[i+1], fill: false, hidden: !display
+        });
+        dataSetDiff.push({
+            label: historicalData[raid].border[i],
+            backgroundColor: colors[i], borderColor: colors[i],
+            data: datat[i+1].map((v,j,a)=>(a[j]==null||a[j-1]==null) ? null : a[j]-a[j-1]),
+            fill: false, hidden: !display
+        });
+    }
+    var t1 = raid + " day " + day + " personal border";
+    var t2 = raid + " day " + day + " personal border 20m speed";
+    if (pborderdata == null) {
+        pborderdata = new Chart($('#pborderdata')[0].getContext('2d'), GraphConfig(t1, dataLabel, dataSet));
+        pborderdatadiff = new Chart($('#pborderdatadiff')[0].getContext('2d'), GraphConfig(t2, dataLabel, dataSetDiff));
+    } else {
+        pborderdata.data.labels = dataLabel;
+        dataSet.forEach((d,i)=>{ pborderdata.data.datasets[i].data = d.data; });
+        pborderdata.options.plugins.title.text = t1;
+        pborderdata.update('none');
+        pborderdatadiff.data.labels = dataLabel;
+        dataSetDiff.forEach((d,i)=>{ pborderdatadiff.data.datasets[i].data = d.data; });
+        pborderdatadiff.options.plugins.title.text = t2;
+        pborderdatadiff.update('none');
+    }
 }
 
 // ==== Crew search (id-or-name, per-day, up to 2 crews, realtime) ====
