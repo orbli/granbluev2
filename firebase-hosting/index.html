@@ -274,6 +274,9 @@
             // Resolve which raid+day to show by default. Only the newest raid
             // honours the "derive today" rule (interval/pre -> previous event's
             // day4); older raids clicked explicitly just show their day4.
+            // Entering via the sidebar is a default (not an explicit day pick),
+            // so the URL stays bare ours&theirs.
+            crewState.dayExplicit = false;
             var rd = (raid === newestRaid) ? CrewDefaultRaidDay() : [raid, 4];
             ShowCrewSearch(rd[0], rd[1]);
         },
@@ -529,7 +532,10 @@ function RenderPB() {
 // slotMatches[slot] caches the {id,name} candidates a slot's input resolved to
 // (>1 when a name matches several crews) so the dropdown can switch without a
 // re-query.
-var crewState = { raid: null, day: null, crews: [] };
+// dayExplicit = the day was chosen deliberately (a Day button click, or a day
+// param in the opened URL). Only then does the day ride along in the shared URL;
+// otherwise the copied link is bare ours&theirs and resolves to "current day".
+var crewState = { raid: null, day: null, crews: [], dayExplicit: false };
 var unsubscribeCrew = [];
 var slotMatches = { A: [], B: [] };
 
@@ -624,7 +630,7 @@ function syncCrewUrl() {
     var p = new URLSearchParams();
     if (crewState.crews[0]) p.set('ours', crewState.crews[0].id);
     if (crewState.crews[1]) p.set('theirs', crewState.crews[1].id);
-    if (crewState.day) p.set('day', crewState.day);
+    if (crewState.dayExplicit && crewState.day) p.set('day', crewState.day);
     history.replaceState(null, '', '/crew?' + p.toString());
     $('#crewshare').prop('disabled', crewState.crews.length < 2);
 }
@@ -642,6 +648,7 @@ function ShareCrewUrl() {
 // from the records we already hold - instant, no network round-trip.
 function SelectDay(day) {
     crewState.day = day;
+    crewState.dayExplicit = true;   // user deliberately chose this day -> keep it in the URL
     $('#crewdays button').removeClass('active').eq(day - 1).addClass('active');
     RenderCrewChart();
     syncCrewUrl();
@@ -799,7 +806,10 @@ function RenderCrewChart() {
                 $('.pborder').hide(); $('.crewsearch').show()
                 var rd = CrewDefaultRaidDay()
                 var d = parseInt(params.get('day'), 10)
-                ShowCrewSearch(rd[0], (d >= 1 && d <= 5) ? d : rd[1])
+                // a valid day in the URL is an explicit pick; otherwise fall back
+                // to the current fighting day (CrewDefaultRaidDay) and omit it.
+                crewState.dayExplicit = (d >= 1 && d <= 4)
+                ShowCrewSearch(rd[0], crewState.dayExplicit ? d : rd[1])
             } else {
                 today = Array.from({length:6},(x,i)=>[4-i,GetDateTimeInRaid(newestRaid,4-i)[0]]).find((e)=>(e[1]<now))
                 helpers.LoadPersonalBorderGraph(newestRaid, today[0])
