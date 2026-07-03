@@ -5,6 +5,9 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      { "source": "/crew", "destination": "/index.html" }
     ]
   },
   "firestore": {
