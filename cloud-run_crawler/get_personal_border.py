@@ -4,7 +4,7 @@ import fs_configs
 from google.cloud import firestore
 
 ranks = [2000]
-ranks.extend(range(5000, 370001, 5000))
+ranks.extend(range(5000, 270001, 5000))
 
 def get_personal_border(t):
     print("start get_personal_border")

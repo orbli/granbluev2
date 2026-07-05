@@ -3,7 +3,7 @@ import gbf_request
 import json
 from google.cloud import firestore
 
-ranks = 5500
+ranks = 9000
 
 def get_crew(t):
     print("start get_crew")
