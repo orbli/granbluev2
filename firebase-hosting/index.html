@@ -208,8 +208,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js" integrity="sha512-TW5s0IT/IppJtu76UbysrBH9Hy/5X41OTAbQuffZFU6lQ1rdcLHzpU5BzVvr/YFykoiMYZVWlr/PX1mDcfM9Qg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <!-- Vue -->
 <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-<!-- moment.js for time convertion -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
 <!-- /.==== Javascript Libraries ==== -->
 
 
@@ -219,8 +217,10 @@
 <script id="ly-library">
     helpers = {
         GetMonth: (historyObject) => {
-            d = new Date(historyObject.date[0].seconds*1000)
-            return (1900 + d.getYear()) + (""+(d.getMonth()+1)).padStart(2,'0')
+            // month label in Japan time (viewer-timezone-independent, like the
+            // chart times) - en-CA yields "YYYY-MM", strip the dash -> "YYYYMM"
+            var d = new Date(historyObject.date[0].seconds*1000)
+            return d.toLocaleDateString('en-CA', {timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit'}).replace(/-/g, '')
         },
         GetTitle: (historyKey, historyObject) => {
             return historyKey.slice(-2) + historyObject.element
@@ -257,15 +257,6 @@
             if (num <= 39) rt.push([5, "Day5"])
             return rt
         },
-        GetDate: (historyObject, day) => {
-            dStart = new Date(historyObject.date[0].seconds*1000)
-            if (day == -1)
-                return dStart.toLyDate()
-            else {
-                dStart.setDate(dStart.getDate() + 2 + day)
-                return dStart.toLyDate()
-            }
-        },
         LoadCrewSearchGraph: (raid) => {
             // stop listening for personal_border updates while in crew search
             if (unsubscribePBorder != null) { unsubscribePBorder(); unsubscribePBorder = null; }
@@ -298,15 +289,6 @@
     }
     Date.prototype.addMinutes = function (days) {
         return new Date(this.valueOf() + days * 60e3);
-    }
-    Date.prototype.toLyDate = function () {
-        return (""+this.getYear()).slice(-2) + (""+(this.getMonth()+1)).padStart(2,'0') + (""+(this.getDate()+1)).padStart(2,'0')
-    }
-    Date.prototype.toLyTime = function () {
-        return (""+this.getHours()).padStart(2,'0') + (""+this.getMinutes()).padStart(2,'0') + (""+this.getSeconds()).padStart(2,'0')
-    }
-    Date.prototype.toLyDatetime = function() {
-        return this.toLyDate() + this.toLyTime()
     }
     Date.prototype.between = function(startDate, endDate) {
         return (startDate <= this) && (this <= endDate)
